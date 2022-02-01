@@ -27,8 +27,8 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
         OriginalItem: item,
       })
     }
-    if idx%100000 == 0 {
-      log.Printf("addedd %d items of %d to suggest", idx, len(items))
+    if (idx + 1) %100000 == 0 {
+      log.Printf("addedd %d items of %d to suggest", idx + 1, len(items))
     }
   }
   log.Printf("finalizing suggest")
