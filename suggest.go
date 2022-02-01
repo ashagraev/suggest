@@ -39,6 +39,9 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
 func (sd *SuggestData) Get(part string) []*Item {
   trieItems := sd.Root.Get([]byte(part))
   var items []*Item
+  if trieItems == nil {
+    return items
+  }
   for _, trieItem := range trieItems.Items {
     item := *trieItem.OriginalItem
     item.Weight = trieItem.Weight
