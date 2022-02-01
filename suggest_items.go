@@ -12,9 +12,9 @@ import (
 )
 
 type Item struct {
-  Weight float32                `json:"weight"`
-  Text   string                 `json:"text"`
-  Data   map[string]interface{} `json:"data"`
+  Weight float32
+  Text   string
+  Data   map[string]interface{}
 }
 
 func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {

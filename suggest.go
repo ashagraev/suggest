@@ -10,6 +10,17 @@ type SuggestData struct {
   Items []*Item
 }
 
+type SuggestionTextBlock struct {
+  Text      string `json:"text"`
+  Highlight bool   `json:"hl"`
+}
+
+type SuggestAnswerItem struct {
+  Weight     float32                `json:"weight"`
+  Data       map[string]interface{} `json:"data"`
+  TextBlocks []*SuggestionTextBlock `json:"text"`
+}
+
 func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) *SuggestData {
   suggest := &SuggestData{
     Root:  NewSuggestionsTrie(),
@@ -27,8 +38,8 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
         OriginalItem: item,
       })
     }
-    if (idx + 1) %100000 == 0 {
-      log.Printf("addedd %d items of %d to suggest", idx + 1, len(items))
+    if (idx+1)%100000 == 0 {
+      log.Printf("addedd %d items of %d to suggest", idx+1, len(items))
     }
   }
   log.Printf("finalizing suggest")
@@ -36,16 +47,38 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   return suggest
 }
 
-func (sd *SuggestData) Get(part string) []*Item {
+func doHighlight(prefix string, suggest string) []*SuggestionTextBlock {
+  suggestParts := strings.SplitN(suggest, prefix, 2)
+  var textBlocks []*SuggestionTextBlock
+  for idx := range suggestParts {
+    if suggestParts[idx] != "" {
+      textBlocks = append(textBlocks, &SuggestionTextBlock{
+        Text:      suggestParts[idx],
+        Highlight: false,
+      })
+    }
+    if idx + 1 != len(suggestParts) {
+      textBlocks = append(textBlocks, &SuggestionTextBlock{
+        Text:      prefix,
+        Highlight: true,
+      })
+    }
+  }
+  return textBlocks
+}
+
+func (sd *SuggestData) Get(part string) []*SuggestAnswerItem {
   trieItems := sd.Root.Get([]byte(part))
-  items := make([]*Item, 0)
+  items := make([]*SuggestAnswerItem, 0)
   if trieItems == nil {
     return items
   }
   for _, trieItem := range trieItems.Items {
-    item := *trieItem.OriginalItem
-    item.Weight = trieItem.Weight
-    items = append(items, &item)
+    items = append(items, &SuggestAnswerItem{
+      Weight:     trieItem.Weight,
+      Data:       trieItem.OriginalItem.Data,
+      TextBlocks: doHighlight(part, trieItem.OriginalItem.Text),
+    })
   }
   return items
 }
