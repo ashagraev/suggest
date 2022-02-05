@@ -60,7 +60,6 @@ func LoadItems(inputFilePath string, policy *bluemonday.Policy) ([]*Item, error)
     lineNumber++
     if lineNumber%100000 == 0 {
       log.Printf("read %d lines", lineNumber)
-      break
     }
   }
   return items, nil
