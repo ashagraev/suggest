@@ -12,9 +12,9 @@ import (
 )
 
 type Item struct {
-  Weight float32
-  Text   string
-  Data   map[string]interface{}
+  Weight         float32
+  NormalizedText string
+  Data           map[string]interface{}
 }
 
 func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
@@ -31,9 +31,9 @@ func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
     return nil, fmt.Errorf("cannot parse data json: %v", err)
   }
   return &Item{
-    Weight: float32(weight),
-    Text:   NormalizeString(parts[0], policy),
-    Data:   data,
+    Weight:         float32(weight),
+    NormalizedText: NormalizeString(parts[0], policy),
+    Data:           data,
   }, nil
 }
 
@@ -58,6 +58,7 @@ func LoadItems(inputFilePath string, policy *bluemonday.Policy) ([]*Item, error)
     lineNumber++
     if lineNumber%100000 == 0 {
       log.Printf("read %d lines", lineNumber)
+      break
     }
   }
   return items, nil

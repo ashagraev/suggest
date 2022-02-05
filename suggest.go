@@ -27,11 +27,11 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
     Items: items,
   }
   for idx, item := range items {
-    suggest.Root.Add(0, item.Text, maxItemsPerPrefix, &SuggestTrieItem{
+    suggest.Root.Add(0, item.NormalizedText, maxItemsPerPrefix, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
     })
-    parts := strings.Split(item.Text, " ")
+    parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
       suggest.Root.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
@@ -57,7 +57,7 @@ func doHighlight(prefix string, suggest string) []*SuggestionTextBlock {
         Highlight: false,
       })
     }
-    if idx + 1 != len(suggestParts) {
+    if idx+1 != len(suggestParts) {
       textBlocks = append(textBlocks, &SuggestionTextBlock{
         Text:      prefix,
         Highlight: true,
@@ -77,7 +77,7 @@ func (sd *SuggestData) Get(part string) []*SuggestAnswerItem {
     items = append(items, &SuggestAnswerItem{
       Weight:     trieItem.Weight,
       Data:       trieItem.OriginalItem.Data,
-      TextBlocks: doHighlight(part, trieItem.OriginalItem.Text),
+      TextBlocks: doHighlight(part, trieItem.OriginalItem.NormalizedText),
     })
   }
   return items
