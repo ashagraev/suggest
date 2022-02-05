@@ -13,6 +13,7 @@ import (
 
 type Item struct {
   Weight         float32
+  OriginalText   string
   NormalizedText string
   Data           map[string]interface{}
 }
@@ -33,6 +34,7 @@ func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
   return &Item{
     Weight:         float32(weight),
     NormalizedText: NormalizeString(parts[0], policy),
+    OriginalText:   parts[0],
     Data:           data,
   }, nil
 }
