@@ -47,28 +47,38 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   return suggest
 }
 
-func doHighlight(prefix string, suggest string) []*SuggestionTextBlock {
-  suggestParts := strings.SplitN(suggest, prefix, 2)
+func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
+  alphaLoweredPart := strings.ToLower(AlphaNormalizeString(originalPart))
+  loweredSuggest := strings.ToLower(originalSuggest)
+
+  partFields := strings.Fields(alphaLoweredPart)
+  pos := 0
   var textBlocks []*SuggestionTextBlock
-  for idx := range suggestParts {
-    if suggestParts[idx] != "" {
+  for idx, partField := range partFields {
+    suggestParts := strings.SplitN(loweredSuggest[pos:], partField, 2)
+    if suggestParts[0] != "" {
       textBlocks = append(textBlocks, &SuggestionTextBlock{
-        Text:      suggestParts[idx],
+        Text:      originalSuggest[pos : pos+len(suggestParts[0])],
         Highlight: false,
       })
     }
-    if idx+1 != len(suggestParts) {
+    textBlocks = append(textBlocks, &SuggestionTextBlock{
+      Text:      originalSuggest[pos+len(suggestParts[0]) : pos+len(suggestParts[0])+len(partField)],
+      Highlight: true,
+    })
+    if idx+1 == len(partFields) && len(suggestParts) == 2 && suggestParts[1] != "" {
       textBlocks = append(textBlocks, &SuggestionTextBlock{
-        Text:      prefix,
-        Highlight: true,
+        Text:      originalSuggest[pos+len(suggestParts[0])+len(partField) : pos+len(suggestParts[0])+len(partField)+len(suggestParts[1])],
+        Highlight: false,
       })
     }
+    pos += len(partField) + len(suggestParts[0])
   }
   return textBlocks
 }
 
-func (sd *SuggestData) Get(part string) []*SuggestAnswerItem {
-  trieItems := sd.Root.Get([]byte(part))
+func (sd *SuggestData) Get(originalPart string, normalizedPart string) []*SuggestAnswerItem {
+  trieItems := sd.Root.Get([]byte(normalizedPart))
   items := make([]*SuggestAnswerItem, 0)
   if trieItems == nil {
     return items
@@ -77,7 +87,7 @@ func (sd *SuggestData) Get(part string) []*SuggestAnswerItem {
     items = append(items, &SuggestAnswerItem{
       Weight:     trieItem.Weight,
       Data:       trieItem.OriginalItem.Data,
-      TextBlocks: doHighlight(part, trieItem.OriginalItem.NormalizedText),
+      TextBlocks: doHighlight(originalPart, trieItem.OriginalItem.OriginalText),
     })
   }
   return items

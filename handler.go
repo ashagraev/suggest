@@ -60,7 +60,7 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   writeCORSHeaders(w)
   part := r.URL.Query().Get("part")
-  part = NormalizeString(part, h.Policy)
-  items := h.Suggest.Get(part)
+  normalizedPart := NormalizeString(part, h.Policy)
+  items := h.Suggest.Get(part, normalizedPart)
   reportSuccessData(w, items)
 }

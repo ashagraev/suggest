@@ -14,3 +14,8 @@ func NormalizeString(s string, p *bluemonday.Policy) string {
   s = strings.Join(alphaRegExp.FindAllString(s, -1), " ")
   return s
 }
+
+func AlphaNormalizeString(s string) string {
+  s = strings.Join(alphaRegExp.FindAllString(s, -1), " ")
+  return s
+}
