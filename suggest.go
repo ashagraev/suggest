@@ -27,13 +27,13 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
     Items: items,
   }
   for idx, item := range items {
-    suggest.Root.Add(0, item.NormalizedText, maxItemsPerPrefix, &SuggestTrieItem{
+    suggest.Root.Add(0, item.NormalizedText, maxItemsPerPrefix * 5, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
-      suggest.Root.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix, &SuggestTrieItem{
+      suggest.Root.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix * 5, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
       })
@@ -43,7 +43,7 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
     }
   }
   log.Printf("finalizing suggest")
-  suggest.Root.Finalize()
+  suggest.Root.Finalize(maxItemsPerPrefix)
   return suggest
 }
 

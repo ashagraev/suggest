@@ -83,14 +83,32 @@ func (st *SuggestTrie) Get(prefix []byte) *SuggestTrieItems {
   return trie.Suggest
 }
 
-func (st *SuggestTrie) Finalize() {
+func (st *SuggestTrie) Finalize(maxItemsPerPrefix int) {
   sort.Slice(st.Suggest.Items, func(i, j int) bool {
     return st.Suggest.Items[i].Weight > st.Suggest.Items[j].Weight
   })
+  var deduplicatedItems []*SuggestTrieItem
+  seenGroups := map[string]bool{}
+  for _, item := range st.Suggest.Items {
+    group, ok := item.OriginalItem.Data["group"]
+    if !ok {
+      deduplicatedItems = append(deduplicatedItems, item)
+      continue
+    }
+    if _, ok := seenGroups[group.(string)]; ok {
+      continue
+    }
+    seenGroups[group.(string)] = true
+    deduplicatedItems = append(deduplicatedItems, item)
+  }
+  st.Suggest.Items = deduplicatedItems
+  if len(st.Suggest.Items) > maxItemsPerPrefix {
+    st.Suggest.Items = st.Suggest.Items[:maxItemsPerPrefix]
+  }
   for _, descendant := range st.Descendants {
     if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Suggest, st.Suggest) {
       st.Suggest.Items = nil
     }
-    descendant.Finalize()
+    descendant.Finalize(maxItemsPerPrefix)
   }
 }
