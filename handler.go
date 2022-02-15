@@ -61,6 +61,9 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   writeCORSHeaders(w)
   part := r.URL.Query().Get("part")
+  if h.EqualShapedNormalize {
+    part = ToEqualShapedLatin(part)
+  }
   normalizedPart := part
   if h.EqualShapedNormalize {
     normalizedPart = EqualShapedNormalizeString(part, h.Policy)
