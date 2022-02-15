@@ -11,6 +11,7 @@ func main() {
   inputFilePath := flag.String("input", "", "input data file path")
   maxItemsPerPrefix := flag.Int("count", 10, "number of suggestions to return")
   suffixSuggestFactor := flag.Float64("suffix-factor", 1e-5, "a weight multiplier for the suffix suggest")
+  equalShapedNormalize := flag.Bool("equal-shaped-normalize", false, "additional normalization for cyrillic symbols")
   port := flag.String("port", "8080", "daemon port")
   flag.Parse()
 
@@ -22,8 +23,9 @@ func main() {
 
   suggest := BuildSuggest(items, *maxItemsPerPrefix, float32(*suffixSuggestFactor))
   h := &Handler{
-    Suggest: suggest,
-    Policy:  policy,
+    Suggest:              suggest,
+    Policy:               policy,
+    EqualShapedNormalize: *equalShapedNormalize,
   }
   log.Println("ready to serve")
 

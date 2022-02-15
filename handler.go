@@ -10,8 +10,9 @@ import (
 )
 
 type Handler struct {
-  Suggest *SuggestData
-  Policy  *bluemonday.Policy
+  Suggest              *SuggestData
+  Policy               *bluemonday.Policy
+  EqualShapedNormalize bool
 }
 
 func writeCORSHeaders(w http.ResponseWriter) {
@@ -60,13 +61,12 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   writeCORSHeaders(w)
   part := r.URL.Query().Get("part")
-  normalizedPart := NormalizeString(part, h.Policy)
+  normalizedPart := part
+  if h.EqualShapedNormalize {
+    normalizedPart = EqualShapedNormalizeString(part, h.Policy)
+  } else {
+    normalizedPart = NormalizeString(part, h.Policy)
+  }
   suggestions := h.Suggest.Get(part, normalizedPart)
-  if len(suggestions) == 0 {
-    suggestions = h.Suggest.Get(ToEqualShapedLatin(part), NormalizeString(ToEqualShapedLatin(part), h.Policy))
-  }
-  if len(suggestions) == 0 {
-    suggestions = h.Suggest.Get(ToEqualShapedLatin(part), EqualShapedNormalizeString(part, h.Policy))
-  }
   reportSuccessData(w, suggestions)
 }
