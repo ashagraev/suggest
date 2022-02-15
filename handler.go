@@ -61,5 +61,12 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   writeCORSHeaders(w)
   part := r.URL.Query().Get("part")
   normalizedPart := NormalizeString(part, h.Policy)
-  reportSuccessData(w, h.Suggest.Get(part, normalizedPart))
+  suggestions := h.Suggest.Get(part, normalizedPart)
+  if len(suggestions) == 0 {
+    suggestions = h.Suggest.Get(ToEqualShapedLatin(part), NormalizeString(ToEqualShapedLatin(part), h.Policy))
+  }
+  if len(suggestions) == 0 {
+    suggestions = h.Suggest.Get(ToEqualShapedLatin(part), EqualShapedNormalizeString(part, h.Policy))
+  }
+  reportSuccessData(w, suggestions)
 }
