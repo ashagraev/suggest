@@ -38,6 +38,7 @@ func ToEqualShapedLatin(s string) string {
     "З": "3",
   }
   for k, v := range rules {
+    s = strings.ReplaceAll(s, k, v)
     s = strings.ReplaceAll(s, strings.ToLower(k), strings.ToLower(v))
   }
   return s
