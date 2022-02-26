@@ -38,10 +38,8 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
     if err != nil {
       return nil, err
     }
-    trie.Descendants = append(trie.Descendants, &stpb.Descendant{
-      Key:  uint32(d.Key),
-      Trie: descendant,
-    })
+    trie.DescendantKeys = append(trie.DescendantKeys, uint32(d.Key))
+    trie.DescendantTries = append(trie.DescendantTries, descendant)
   }
   for _, item := range builder.Suggest {
     if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
@@ -57,10 +55,8 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
         Data:           dataStruct,
       })
     }
-    trie.Items = append(trie.Items, &stpb.SuggestTrieItem{
-      Weight:          item.Weight,
-      OriginalItemIdx: uint32(pt.ItemsMap[item.OriginalItem]),
-    })
+    trie.ItemWeights = append(trie.ItemWeights, item.Weight)
+    trie.ItemIndexes = append(trie.ItemIndexes, uint32(pt.ItemsMap[item.OriginalItem]))
   }
   return trie, nil
 }
@@ -130,15 +126,15 @@ func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextB
   return textBlocks
 }
 
-func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte) []*stpb.SuggestTrieItem {
+func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte) []*stpb.Item {
   trie := suggest.Trie
   for _, c := range prefix {
     found := false
-    for _, d := range trie.Descendants {
-      if d.Key != uint32(c) {
+    for idx, key := range trie.DescendantKeys {
+      if key != uint32(c) {
         continue
       }
-      trie = d.Trie
+      trie = trie.DescendantTries[idx]
       found = true
       break
     }
@@ -146,13 +142,17 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte) []*stpb.SuggestTr
       return nil
     }
   }
-  for len(trie.Descendants) == 1 && len(trie.Items) == 0 {
-    for _, d := range trie.Descendants {
-      trie = d.Trie
+  for len(trie.DescendantKeys) == 1 && len(trie.ItemWeights) == 0 {
+    for _, d := range trie.DescendantTries {
+      trie = d
       break
     }
   }
-  return trie.Items
+  var items []*stpb.Item
+  for _, itemIdx := range trie.ItemIndexes {
+    items = append(items, suggest.Items[itemIdx])
+  }
+  return items
 }
 
 func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string) []*SuggestAnswerItem {
@@ -162,11 +162,10 @@ func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart s
     return items
   }
   for _, trieItem := range trieItems {
-    originalItem := suggest.Items[trieItem.OriginalItemIdx]
     items = append(items, &SuggestAnswerItem{
       Weight:     trieItem.Weight,
-      Data:       originalItem.Data.AsMap(),
-      TextBlocks: doHighlight(originalPart, originalItem.OriginalText),
+      Data:       trieItem.Data.AsMap(),
+      TextBlocks: doHighlight(originalPart, trieItem.OriginalText),
     })
   }
   return items

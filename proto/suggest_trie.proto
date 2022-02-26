@@ -13,19 +13,11 @@ message Item {
   google.protobuf.Struct Data = 4;
 }
 
-message SuggestTrieItem {
-  float Weight = 1;
-  uint32 OriginalItemIdx = 2;
-}
-
-message Descendant {
-  uint32 Key = 1;
-  SuggestTrie Trie = 2;
-}
-
 message SuggestTrie {
-  repeated Descendant Descendants = 1;
-  repeated SuggestTrieItem Items = 2;
+  repeated uint32 DescendantKeys = 1;
+  repeated SuggestTrie DescendantTries = 2;
+  repeated float ItemWeights = 3;
+  repeated uint32 ItemIndexes = 4;
 }
 
 message SuggestData {
