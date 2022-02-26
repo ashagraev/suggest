@@ -32,15 +32,16 @@ func NewProtoTransformer() *ProtoTransformer {
 }
 
 func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.SuggestTrie, error) {
-  trie := &stpb.SuggestTrie{
-    Descendants: make(map[uint32]*stpb.SuggestTrie),
-  }
+  trie := &stpb.SuggestTrie{}
   for k, v := range builder.Descendants {
     descendant, err := pt.TransformTrie(v)
     if err != nil {
       return nil, err
     }
-    trie.Descendants[uint32(k)] = descendant
+    trie.Descendants = append(trie.Descendants, &stpb.Descendant{
+      Key:  uint32(k),
+      Trie: descendant,
+    })
   }
   for _, item := range builder.Suggest.Items {
     if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
@@ -132,15 +133,22 @@ func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextB
 func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte) []*stpb.SuggestTrieItem {
   trie := suggest.Trie
   for _, c := range prefix {
-    d, ok := trie.Descendants[uint32(c)]
-    if !ok {
+    found := false
+    for _, d := range trie.Descendants {
+      if d.Key != uint32(c) {
+        continue
+      }
+      trie = d.Trie
+      found = true
+      break
+    }
+    if !found {
       return nil
     }
-    trie = d
   }
   for len(trie.Descendants) == 1 && len(trie.Items) == 0 {
     for _, d := range trie.Descendants {
-      trie = d
+      trie = d.Trie
       break
     }
   }

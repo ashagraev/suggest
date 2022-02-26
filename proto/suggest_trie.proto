@@ -18,8 +18,13 @@ message SuggestTrieItem {
   uint32 OriginalItemIdx = 2;
 }
 
+message Descendant {
+  uint32 Key = 1;
+  SuggestTrie Trie = 2;
+}
+
 message SuggestTrie {
-  map<uint32, SuggestTrie> Descendants = 1;
+  repeated Descendant Descendants = 1;
   repeated SuggestTrieItem Items = 2;
 }
 
