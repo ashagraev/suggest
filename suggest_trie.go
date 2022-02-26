@@ -70,15 +70,7 @@ func (s *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix in
   descendant.Builder.Add(position+1, text, maxItemsPerPrefix, item)
 }
 
-func (s *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
-  for _, descendant := range s.Descendants {
-    if len(s.Descendants) == 1 && reflect.DeepEqual(descendant.Builder.Suggest, s.Suggest) {
-      s.Suggest = nil
-    }
-  }
-  sort.Slice(s.Suggest, func(i, j int) bool {
-    return s.Suggest[i].Weight > s.Suggest[j].Weight
-  })
+func (s *SuggestTrieBuilder) DeduplicateSuggest() {
   var deduplicatedItems []*SuggestTrieItem
   seenGroups := map[string]bool{}
   for _, item := range s.Suggest {
@@ -93,7 +85,20 @@ func (s *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
     seenGroups[group.(string)] = true
     deduplicatedItems = append(deduplicatedItems, item)
   }
+  s.Suggest = nil
   s.Suggest = deduplicatedItems
+}
+
+func (s *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
+  for _, descendant := range s.Descendants {
+    if len(s.Descendants) == 1 && reflect.DeepEqual(descendant.Builder.Suggest, s.Suggest) {
+      s.Suggest = nil
+    }
+  }
+  sort.Slice(s.Suggest, func(i, j int) bool {
+    return s.Suggest[i].Weight > s.Suggest[j].Weight
+  })
+  s.DeduplicateSuggest()
   if len(s.Suggest) > maxItemsPerPrefix {
     s.Suggest = s.Suggest[:maxItemsPerPrefix]
   }
