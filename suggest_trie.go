@@ -38,15 +38,19 @@ func (s *SuggestTrieItems) Pop() interface{} {
   return lastItem
 }
 
+type SuggestTrieDescendant struct {
+  Key     byte
+  Builder *SuggestTrieBuilder
+}
+
 type SuggestTrieBuilder struct {
-  Descendants map[byte]*SuggestTrieBuilder
+  Descendants []*SuggestTrieDescendant
   Suggest     *SuggestTrieItems
 }
 
 func NewSuggestionsTrieBuilder() *SuggestTrieBuilder {
   return &SuggestTrieBuilder{
-    Descendants: make(map[byte]*SuggestTrieBuilder, 0),
-    Suggest:     &SuggestTrieItems{},
+    Suggest: &SuggestTrieItems{},
   }
 }
 
@@ -59,15 +63,26 @@ func (st *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix i
     return
   }
   c := text[position]
-  if _, ok := st.Descendants[c]; !ok {
-    st.Descendants[c] = NewSuggestionsTrieBuilder()
+  var descendant *SuggestTrieDescendant
+  for _, d := range st.Descendants {
+    if d.Key != c {
+      continue
+    }
+    descendant = d
   }
-  st.Descendants[c].Add(position+1, text, maxItemsPerPrefix, item)
+  if descendant == nil {
+    descendant = &SuggestTrieDescendant{
+      Key:     c,
+      Builder: NewSuggestionsTrieBuilder(),
+    }
+    st.Descendants = append(st.Descendants, descendant)
+  }
+  descendant.Builder.Add(position+1, text, maxItemsPerPrefix, item)
 }
 
 func (st *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
   for _, descendant := range st.Descendants {
-    if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Suggest, &SuggestTrieItems{Items: st.Suggest.Items}) {
+    if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Builder.Suggest, &SuggestTrieItems{Items: st.Suggest.Items}) {
       st.Suggest.Items = nil
     }
   }
@@ -93,6 +108,6 @@ func (st *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
     st.Suggest.Items = st.Suggest.Items[:maxItemsPerPrefix]
   }
   for _, descendant := range st.Descendants {
-    descendant.Finalize(maxItemsPerPrefix)
+    descendant.Builder.Finalize(maxItemsPerPrefix)
   }
 }

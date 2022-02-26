@@ -33,13 +33,13 @@ func NewProtoTransformer() *ProtoTransformer {
 
 func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.SuggestTrie, error) {
   trie := &stpb.SuggestTrie{}
-  for k, v := range builder.Descendants {
-    descendant, err := pt.TransformTrie(v)
+  for _, d := range builder.Descendants {
+    descendant, err := pt.TransformTrie(d.Builder)
     if err != nil {
       return nil, err
     }
     trie.Descendants = append(trie.Descendants, &stpb.Descendant{
-      Key:  uint32(k),
+      Key:  uint32(d.Key),
       Trie: descendant,
     })
   }
