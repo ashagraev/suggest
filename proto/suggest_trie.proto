@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package suggest_trie;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "suggest/suggest_trie";
+
+message Item {
+  float Weight = 1;
+  string OriginalText = 2;
+  string NormalizedText = 3;
+  google.protobuf.Struct Data = 4;
+}
+
+message SuggestTrieItem {
+  float Weight = 1;
+  uint32 OriginalItemIdx = 2;
+}
+
+message SuggestTrie {
+  map<uint32, SuggestTrie> Descendants = 1;
+  repeated SuggestTrieItem Items = 2;
+}
+
+message SuggestData {
+  SuggestTrie Trie = 1;
+  repeated Item Items = 2;
+}

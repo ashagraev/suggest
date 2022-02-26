@@ -38,19 +38,19 @@ func (s *SuggestTrieItems) Pop() interface{} {
   return lastItem
 }
 
-type SuggestTrie struct {
-  Descendants map[byte]*SuggestTrie
+type SuggestTrieBuilder struct {
+  Descendants map[byte]*SuggestTrieBuilder
   Suggest     *SuggestTrieItems
 }
 
-func NewSuggestionsTrie() *SuggestTrie {
-  return &SuggestTrie{
-    Descendants: make(map[byte]*SuggestTrie),
+func NewSuggestionsTrieBuilder() *SuggestTrieBuilder {
+  return &SuggestTrieBuilder{
+    Descendants: make(map[byte]*SuggestTrieBuilder, 0),
     Suggest:     &SuggestTrieItems{},
   }
 }
 
-func (st *SuggestTrie) Add(position int, text string, maxItemsPerPrefix int, item *SuggestTrieItem) {
+func (st *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix int, item *SuggestTrieItem) {
   heap.Push(st.Suggest, item)
   for st.Suggest.Len() > maxItemsPerPrefix {
     heap.Pop(st.Suggest)
@@ -60,30 +60,12 @@ func (st *SuggestTrie) Add(position int, text string, maxItemsPerPrefix int, ite
   }
   c := text[position]
   if _, ok := st.Descendants[c]; !ok {
-    st.Descendants[c] = NewSuggestionsTrie()
+    st.Descendants[c] = NewSuggestionsTrieBuilder()
   }
   st.Descendants[c].Add(position+1, text, maxItemsPerPrefix, item)
 }
 
-func (st *SuggestTrie) Get(prefix []byte) *SuggestTrieItems {
-  trie := st
-  for _, c := range prefix {
-    d, ok := trie.Descendants[c]
-    if !ok {
-      return nil
-    }
-    trie = d
-  }
-  for len(trie.Descendants) == 1 && trie.Suggest.Len() == 0 {
-    for _, d := range trie.Descendants {
-      trie = d
-      break
-    }
-  }
-  return trie.Suggest
-}
-
-func (st *SuggestTrie) Finalize(maxItemsPerPrefix int) {
+func (st *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
   oldItems := make([]*SuggestTrieItem, len(st.Suggest.Items))
   copy(oldItems, st.Suggest.Items)
 
@@ -109,7 +91,7 @@ func (st *SuggestTrie) Finalize(maxItemsPerPrefix int) {
     st.Suggest.Items = st.Suggest.Items[:maxItemsPerPrefix]
   }
   for _, descendant := range st.Descendants {
-    if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Suggest, &SuggestTrieItems{ Items : oldItems }) {
+    if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Suggest, &SuggestTrieItems{Items: oldItems}) {
       st.Suggest.Items = nil
     }
     descendant.Finalize(maxItemsPerPrefix)

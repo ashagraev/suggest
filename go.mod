@@ -2,7 +2,10 @@ module main
 
 go 1.17
 
-require github.com/microcosm-cc/bluemonday v1.0.17
+require (
+	github.com/microcosm-cc/bluemonday v1.0.17
+	google.golang.org/protobuf v1.27.1
+)
 
 require (
 	github.com/aymerick/douceur v0.2.0 // indirect

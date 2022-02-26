@@ -6,11 +6,12 @@ import (
   "fmt"
   "github.com/microcosm-cc/bluemonday"
   "log"
+  stpb "main/proto/suggest/suggest_trie"
   "net/http"
 )
 
 type Handler struct {
-  Suggest              *SuggestData
+  Suggest              *stpb.SuggestData
   Policy               *bluemonday.Policy
   EqualShapedNormalize bool
 }
@@ -70,6 +71,6 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
-  suggestions := h.Suggest.Get(part, normalizedPart)
+  suggestions := GetSuggest(h.Suggest, part, normalizedPart)
   reportSuccessData(w, suggestions)
 }

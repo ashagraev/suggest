@@ -1,14 +1,13 @@
 package main
 
 import (
+  "google.golang.org/protobuf/proto"
+  "google.golang.org/protobuf/types/known/structpb"
+  "io/ioutil"
   "log"
+  stpb "main/proto/suggest/suggest_trie"
   "strings"
 )
-
-type SuggestData struct {
-  Root  *SuggestTrie
-  Items []*Item
-}
 
 type SuggestionTextBlock struct {
   Text      string `json:"text"`
@@ -21,19 +20,72 @@ type SuggestAnswerItem struct {
   TextBlocks []*SuggestionTextBlock `json:"text"`
 }
 
-func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) *SuggestData {
-  suggest := &SuggestData{
-    Root:  NewSuggestionsTrie(),
-    Items: items,
+type ProtoTransformer struct {
+  ItemsMap map[*Item]int
+  Items    []*stpb.Item
+}
+
+func NewProtoTransformer() *ProtoTransformer {
+  return &ProtoTransformer{
+    ItemsMap: make(map[*Item]int),
   }
+}
+
+func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.SuggestTrie, error) {
+  trie := &stpb.SuggestTrie{
+    Descendants: make(map[uint32]*stpb.SuggestTrie),
+  }
+  for k, v := range builder.Descendants {
+    descendant, err := pt.TransformTrie(v)
+    if err != nil {
+      return nil, err
+    }
+    trie.Descendants[uint32(k)] = descendant
+  }
+  for _, item := range builder.Suggest.Items {
+    if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
+      dataStruct, err := structpb.NewStruct(item.OriginalItem.Data)
+      if err != nil {
+        return nil, err
+      }
+      pt.ItemsMap[item.OriginalItem] = len(pt.Items)
+      pt.Items = append(pt.Items, &stpb.Item{
+        Weight:         item.OriginalItem.Weight,
+        OriginalText:   item.OriginalItem.OriginalText,
+        NormalizedText: item.OriginalItem.NormalizedText,
+        Data:           dataStruct,
+      })
+    }
+    trie.Items = append(trie.Items, &stpb.SuggestTrieItem{
+      Weight:          item.Weight,
+      OriginalItemIdx: uint32(pt.ItemsMap[item.OriginalItem]),
+    })
+  }
+  return trie, nil
+}
+
+func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
+  pt := NewProtoTransformer()
+  trie, err := pt.TransformTrie(builder)
+  if err != nil {
+    return nil, err
+  }
+  return &stpb.SuggestData{
+    Trie:  trie,
+    Items: pt.Items,
+  }, nil
+}
+
+func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
+  builder := NewSuggestionsTrieBuilder()
   for idx, item := range items {
-    suggest.Root.Add(0, item.NormalizedText, maxItemsPerPrefix * 5, &SuggestTrieItem{
+    builder.Add(0, item.NormalizedText, maxItemsPerPrefix*5, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
-      suggest.Root.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix * 5, &SuggestTrieItem{
+      builder.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix*5, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
       })
@@ -43,8 +95,8 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
     }
   }
   log.Printf("finalizing suggest")
-  suggest.Root.Finalize(maxItemsPerPrefix)
-  return suggest
+  builder.Finalize(maxItemsPerPrefix)
+  return Transform(builder)
 }
 
 func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
@@ -77,18 +129,49 @@ func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextB
   return textBlocks
 }
 
-func (sd *SuggestData) Get(originalPart string, normalizedPart string) []*SuggestAnswerItem {
-  trieItems := sd.Root.Get([]byte(normalizedPart))
+func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte) []*stpb.SuggestTrieItem {
+  trie := suggest.Trie
+  for _, c := range prefix {
+    d, ok := trie.Descendants[uint32(c)]
+    if !ok {
+      return nil
+    }
+    trie = d
+  }
+  for len(trie.Descendants) == 1 && len(trie.Items) == 0 {
+    for _, d := range trie.Descendants {
+      trie = d
+      break
+    }
+  }
+  return trie.Items
+}
+
+func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string) []*SuggestAnswerItem {
+  trieItems := GetSuggestItems(suggest, []byte(normalizedPart))
   items := make([]*SuggestAnswerItem, 0)
   if trieItems == nil {
     return items
   }
-  for _, trieItem := range trieItems.Items {
+  for _, trieItem := range trieItems {
+    originalItem := suggest.Items[trieItem.OriginalItemIdx]
     items = append(items, &SuggestAnswerItem{
       Weight:     trieItem.Weight,
-      Data:       trieItem.OriginalItem.Data,
-      TextBlocks: doHighlight(originalPart, trieItem.OriginalItem.OriginalText),
+      Data:       originalItem.Data.AsMap(),
+      TextBlocks: doHighlight(originalPart, originalItem.OriginalText),
     })
   }
   return items
+}
+
+func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
+  b, err := ioutil.ReadFile(suggestDataPath)
+  if err != nil {
+    return nil, err
+  }
+  suggestData := &stpb.SuggestData{}
+  if err := proto.Unmarshal(b, suggestData); err != nil {
+    return nil, err
+  }
+  return suggestData, nil
 }
