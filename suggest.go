@@ -76,13 +76,13 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
 func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
-    builder.Add(0, item.NormalizedText, maxItemsPerPrefix*5, &SuggestTrieItem{
+    builder.Add(0, item.NormalizedText, maxItemsPerPrefix*2, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
-      builder.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix*5, &SuggestTrieItem{
+      builder.Add(0, strings.Join(parts[i:], " "), maxItemsPerPrefix*2, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
       })
