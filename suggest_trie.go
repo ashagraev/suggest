@@ -11,33 +11,6 @@ type SuggestTrieItem struct {
   OriginalItem *Item
 }
 
-type SuggestTrieItems struct {
-  Items []*SuggestTrieItem
-}
-
-func (s *SuggestTrieItems) Len() int {
-  return len(s.Items)
-}
-
-func (s *SuggestTrieItems) Less(i, j int) bool {
-  return s.Items[i].Weight < s.Items[j].Weight
-}
-
-func (s *SuggestTrieItems) Swap(i, j int) {
-  s.Items[i], s.Items[j] = s.Items[j], s.Items[i]
-}
-
-func (s *SuggestTrieItems) Push(x interface{}) {
-  s.Items = append(s.Items, x.(*SuggestTrieItem))
-}
-
-func (s *SuggestTrieItems) Pop() interface{} {
-  lastItem := s.Items[len(s.Items)-1]
-  s.Items[len(s.Items)-1] = nil
-  s.Items = s.Items[:len(s.Items)-1]
-  return lastItem
-}
-
 type SuggestTrieDescendant struct {
   Key     byte
   Builder *SuggestTrieBuilder
@@ -45,26 +18,43 @@ type SuggestTrieDescendant struct {
 
 type SuggestTrieBuilder struct {
   Descendants []*SuggestTrieDescendant
-  Suggest     *SuggestTrieItems
+  Suggest     []*SuggestTrieItem
 }
 
-func NewSuggestionsTrieBuilder() *SuggestTrieBuilder {
-  return &SuggestTrieBuilder{
-    Suggest: &SuggestTrieItems{},
-  }
+func (s *SuggestTrieBuilder) Len() int {
+  return len(s.Suggest)
 }
 
-func (st *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix int, item *SuggestTrieItem) {
-  heap.Push(st.Suggest, item)
-  for st.Suggest.Len() > maxItemsPerPrefix {
-    heap.Pop(st.Suggest)
+func (s *SuggestTrieBuilder) Less(i, j int) bool {
+  return s.Suggest[i].Weight < s.Suggest[j].Weight
+}
+
+func (s *SuggestTrieBuilder) Swap(i, j int) {
+  s.Suggest[i], s.Suggest[j] = s.Suggest[j], s.Suggest[i]
+}
+
+func (s *SuggestTrieBuilder) Push(x interface{}) {
+  s.Suggest = append(s.Suggest, x.(*SuggestTrieItem))
+}
+
+func (s *SuggestTrieBuilder) Pop() interface{} {
+  lastItem := s.Suggest[len(s.Suggest)-1]
+  s.Suggest[len(s.Suggest)-1] = nil
+  s.Suggest = s.Suggest[:len(s.Suggest)-1]
+  return lastItem
+}
+
+func (s *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix int, item *SuggestTrieItem) {
+  heap.Push(s, item)
+  for len(s.Suggest) > maxItemsPerPrefix {
+    heap.Pop(s)
   }
   if position == len(text) {
     return
   }
   c := text[position]
   var descendant *SuggestTrieDescendant
-  for _, d := range st.Descendants {
+  for _, d := range s.Descendants {
     if d.Key != c {
       continue
     }
@@ -73,25 +63,25 @@ func (st *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix i
   if descendant == nil {
     descendant = &SuggestTrieDescendant{
       Key:     c,
-      Builder: NewSuggestionsTrieBuilder(),
+      Builder: &SuggestTrieBuilder{},
     }
-    st.Descendants = append(st.Descendants, descendant)
+    s.Descendants = append(s.Descendants, descendant)
   }
   descendant.Builder.Add(position+1, text, maxItemsPerPrefix, item)
 }
 
-func (st *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
-  for _, descendant := range st.Descendants {
-    if len(st.Descendants) == 1 && reflect.DeepEqual(descendant.Builder.Suggest, &SuggestTrieItems{Items: st.Suggest.Items}) {
-      st.Suggest.Items = nil
+func (s *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
+  for _, descendant := range s.Descendants {
+    if len(s.Descendants) == 1 && reflect.DeepEqual(descendant.Builder.Suggest, s.Suggest) {
+      s.Suggest = nil
     }
   }
-  sort.Slice(st.Suggest.Items, func(i, j int) bool {
-    return st.Suggest.Items[i].Weight > st.Suggest.Items[j].Weight
+  sort.Slice(s.Suggest, func(i, j int) bool {
+    return s.Suggest[i].Weight > s.Suggest[j].Weight
   })
   var deduplicatedItems []*SuggestTrieItem
   seenGroups := map[string]bool{}
-  for _, item := range st.Suggest.Items {
+  for _, item := range s.Suggest {
     group, ok := item.OriginalItem.Data["group"]
     if !ok {
       deduplicatedItems = append(deduplicatedItems, item)
@@ -103,11 +93,11 @@ func (st *SuggestTrieBuilder) Finalize(maxItemsPerPrefix int) {
     seenGroups[group.(string)] = true
     deduplicatedItems = append(deduplicatedItems, item)
   }
-  st.Suggest.Items = deduplicatedItems
-  if len(st.Suggest.Items) > maxItemsPerPrefix {
-    st.Suggest.Items = st.Suggest.Items[:maxItemsPerPrefix]
+  s.Suggest = deduplicatedItems
+  if len(s.Suggest) > maxItemsPerPrefix {
+    s.Suggest = s.Suggest[:maxItemsPerPrefix]
   }
-  for _, descendant := range st.Descendants {
+  for _, descendant := range s.Descendants {
     descendant.Builder.Finalize(maxItemsPerPrefix)
   }
 }

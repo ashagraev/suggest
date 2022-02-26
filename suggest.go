@@ -43,7 +43,7 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
       Trie: descendant,
     })
   }
-  for _, item := range builder.Suggest.Items {
+  for _, item := range builder.Suggest {
     if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
       dataStruct, err := structpb.NewStruct(item.OriginalItem.Data)
       if err != nil {
@@ -78,7 +78,7 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
 }
 
 func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
-  builder := NewSuggestionsTrieBuilder()
+  builder := &SuggestTrieBuilder{}
   for idx, item := range items {
     builder.Add(0, item.NormalizedText, maxItemsPerPrefix*5, &SuggestTrieItem{
       Weight:       item.Weight,
