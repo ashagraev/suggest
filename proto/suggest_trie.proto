@@ -9,7 +9,6 @@ option go_package = "suggest/suggest_trie";
 message Item {
   float Weight = 1;
   string OriginalText = 2;
-  string NormalizedText = 3;
   google.protobuf.Struct Data = 4;
 }
 

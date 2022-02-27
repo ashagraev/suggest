@@ -51,7 +51,6 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
       pt.Items = append(pt.Items, &stpb.Item{
         Weight:         item.OriginalItem.Weight,
         OriginalText:   item.OriginalItem.OriginalText,
-        NormalizedText: item.OriginalItem.NormalizedText,
         Data:           dataStruct,
       })
     }
