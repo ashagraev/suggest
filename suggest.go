@@ -81,21 +81,11 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
       OriginalItem: item,
     })
     parts := strings.Split(item.NormalizedText, " ")
-    for i := 0; i < len(parts); i++ {
-      if i != 0 {
-        builder.Add(0, strings.Join(parts[i:], " "), veroheadItemsCount, &SuggestTrieItem{
-          Weight:       item.Weight * postfixWeightFactor,
-          OriginalItem: item,
-        })
-      }
-      part := parts[i]
-      for shift := 1; shift < len(part); shift++ {
-        suffix := part[shift:] + " " + strings.Join(parts[i+1:], " ")
-        builder.Add(0, suffix, veroheadItemsCount, &SuggestTrieItem{
-          Weight:       item.Weight * postfixWeightFactor * postfixWeightFactor,
-          OriginalItem: item,
-        })
-      }
+    for i := 1; i < len(parts); i++ {
+      builder.Add(0, strings.Join(parts[i:], " "), veroheadItemsCount, &SuggestTrieItem{
+        Weight:       item.Weight * postfixWeightFactor,
+        OriginalItem: item,
+      })
     }
     if (idx+1)%100000 == 0 {
       log.Printf("addedd %d items of %d to suggest", idx+1, len(items))
