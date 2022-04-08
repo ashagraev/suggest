@@ -71,6 +71,7 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
-  suggestions := GetSuggest(h.Suggest, part, normalizedPart)
+  class := r.URL.Query().Get("class")
+  suggestions := GetSuggest(h.Suggest, part, normalizedPart, class)
   reportSuccessData(w, suggestions)
 }
