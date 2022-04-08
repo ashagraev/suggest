@@ -8,6 +8,7 @@ import (
   "log"
   stpb "main/proto/suggest/suggest_trie"
   "net/http"
+  "strings"
 )
 
 type Handler struct {
@@ -71,7 +72,13 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
-  class := r.URL.Query().Get("class")
-  suggestions := GetSuggest(h.Suggest, part, normalizedPart, class)
+  classes := r.URL.Query()["class"]
+  classesMap := map[string]bool{}
+  for _, class := range classes {
+    if class != "" {
+      classesMap[strings.ToLower(class)] = true
+    }
+  }
+  suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap)
   reportSuccessData(w, suggestions)
 }
