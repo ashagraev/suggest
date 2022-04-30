@@ -6,7 +6,7 @@ import (
   "strings"
 )
 
-var alphaRegExp = regexp.MustCompile(`[a-zA-Z0-9]+`)
+var alphaRegExp = regexp.MustCompile(`[a-zA-Z]+|[0-9]+`)
 
 func NormalizeString(s string, p *bluemonday.Policy) string {
   s = p.Sanitize(s)
