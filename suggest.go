@@ -21,6 +21,13 @@ type SuggestAnswerItem struct {
   TextBlocks []*SuggestionTextBlock `json:"text"`
 }
 
+type PaginatedSuggestResponse struct {
+  Suggestions     []*SuggestAnswerItem `json:"suggestions"`
+  PageNumber      int                  `json:"page_number"`
+  TotalPagesCount int                  `json:"total_pages_count"`
+  TotalItemsCount int                  `json:"total_items_count"`
+}
+
 type ProtoTransformer struct {
   ItemsMap map[*Item]int
   Items    []*stpb.Item
@@ -44,7 +51,7 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
   }
   for _, suggest := range builder.Suggest {
     trieItems := &stpb.ClassItems{
-      Class:       suggest.Class,
+      Class: suggest.Class,
     }
     for _, item := range suggest.Suggest {
       if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {

@@ -7,7 +7,9 @@ import (
   "github.com/microcosm-cc/bluemonday"
   "log"
   stpb "main/proto/suggest/suggest_trie"
+  "math"
   "net/http"
+  "net/url"
   "strconv"
   "strings"
 )
@@ -61,6 +63,49 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
   reportSuccessMessage(w, "OK")
 }
 
+type PagingParameters struct {
+  Count        int
+  Page         int
+  PaginationOn bool
+}
+
+func NewPagingParameters(query url.Values) *PagingParameters {
+  pagingParameters := &PagingParameters{}
+  if count, err := strconv.ParseInt(query.Get("count"), 10, 64); err == nil { // no err
+    pagingParameters.Count = int(count)
+  }
+  if page, err := strconv.ParseInt(query.Get("page"), 10, 64); err == nil { // no err
+    pagingParameters.Page = int(page)
+    pagingParameters.PaginationOn = true
+  }
+  return pagingParameters
+}
+
+func (pp *PagingParameters) Apply(suggestions []*SuggestAnswerItem) *PaginatedSuggestResponse {
+  pagesCount := 1
+  if pp.Count != 0 {
+    pagesCount = int(math.Ceil(float64(len(suggestions)) / float64(pp.Count)))
+  }
+  itemsCount := len(suggestions)
+  if pp.Page != 0 && pp.Count != 0 {
+    skip := pp.Page * pp.Count
+    if len(suggestions) > skip {
+      suggestions = suggestions[skip:]
+    } else {
+      suggestions = nil
+    }
+  }
+  if pp.Count != 0 && len(suggestions) > pp.Count {
+    suggestions = suggestions[:pp.Count]
+  }
+  return &PaginatedSuggestResponse{
+    Suggestions:     suggestions,
+    PageNumber:      pp.Page,
+    TotalPagesCount: pagesCount,
+    TotalItemsCount: itemsCount,
+  }
+}
+
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   writeCORSHeaders(w)
   part := r.URL.Query().Get("part")
@@ -86,5 +131,10 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
       suggestions = suggestions[:count]
     }
   }
-  reportSuccessData(w, suggestions)
+  pagingParameters := NewPagingParameters(r.URL.Query())
+  if pagingParameters.PaginationOn {
+    reportSuccessData(w, pagingParameters.Apply(suggestions))
+  } else {
+    reportSuccessData(w, suggestions)
+  }
 }
