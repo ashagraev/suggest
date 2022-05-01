@@ -126,15 +126,15 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
     }
   }
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap)
-  if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
-    if count != 0 && len(suggestions) > int(count) {
-      suggestions = suggestions[:count]
-    }
-  }
   pagingParameters := NewPagingParameters(r.URL.Query())
   if pagingParameters.PaginationOn {
     reportSuccessData(w, pagingParameters.Apply(suggestions))
   } else {
+    if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
+      if count != 0 && len(suggestions) > int(count) {
+        suggestions = suggestions[:count]
+      }
+    }
     reportSuccessData(w, suggestions)
   }
 }
