@@ -14,8 +14,9 @@ message Item {
 
 message ClassItems {
   string Class = 1;
-  repeated float ItemWeights = 2;
-  repeated uint32 ItemIndexes = 3;
+  string AntiClass = 2;
+  repeated float ItemWeights = 3;
+  repeated uint32 ItemIndexes = 4;
 }
 
 message SuggestTrie {
