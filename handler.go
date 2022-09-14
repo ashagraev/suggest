@@ -117,11 +117,11 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
-  antiClasses := r.URL.Query()["anti-class"]
-  antiClassesMap := PrepareCheckMap(antiClasses)
   classes := r.URL.Query()["class"]
   classesMap := PrepareCheckMap(classes)
-  suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, antiClassesMap)
+  excludeClasses := r.URL.Query()["exclude-class"]
+  excludeClassesMap := PrepareCheckMap(excludeClasses)
+  suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
   if pagingParameters.PaginationOn {
     reportSuccessData(w, pagingParameters.Apply(suggestions))

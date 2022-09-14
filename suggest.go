@@ -140,7 +140,7 @@ func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextB
   return textBlocks
 }
 
-func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, antiClasses map[string]bool) []*stpb.Item {
+func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeClasses map[string]bool) []*stpb.Item {
   trie := suggest.Trie
   for _, c := range prefix {
     found := false
@@ -164,7 +164,7 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, antiClas
   }
   var items []*stpb.Item
   for _, suggestItems := range trie.Items {
-    if _, ok := antiClasses[suggestItems.AntiClass]; ok {
+    if _, ok := excludeClasses[suggestItems.Class]; ok {
       continue
     }
     if _, ok := classes[suggestItems.Class]; !ok && len(classes) > 0 {
@@ -180,8 +180,8 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, antiClas
   return items
 }
 
-func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, antiClasses map[string]bool) []*SuggestAnswerItem {
-  trieItems := GetSuggestItems(suggest, []byte(normalizedPart), classes, antiClasses)
+func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, excludeClasses map[string]bool) []*SuggestAnswerItem {
+  trieItems := GetSuggestItems(suggest, []byte(normalizedPart), classes, excludeClasses)
   items := make([]*SuggestAnswerItem, 0)
   if trieItems == nil {
     return items
