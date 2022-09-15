@@ -11,7 +11,6 @@ import (
   "net/http"
   "net/url"
   "strconv"
-  "strings"
 )
 
 type Handler struct {
@@ -119,13 +118,10 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
     normalizedPart = NormalizeString(part, h.Policy)
   }
   classes := r.URL.Query()["class"]
-  classesMap := map[string]bool{}
-  for _, class := range classes {
-    if class != "" {
-      classesMap[strings.ToLower(class)] = true
-    }
-  }
-  suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap)
+  classesMap := PrepareCheckMap(classes)
+  excludeClasses := r.URL.Query()["exclude-class"]
+  excludeClassesMap := PrepareCheckMap(excludeClasses)
+  suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
   if pagingParameters.PaginationOn {
     reportSuccessData(w, pagingParameters.Apply(suggestions))
