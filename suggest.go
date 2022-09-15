@@ -51,7 +51,8 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
   }
   for _, suggest := range builder.Suggest {
     trieItems := &stpb.ClassItems{
-      Class: suggest.Class,
+      Class:   suggest.Class,
+      Classes: suggest.Classes,
     }
     for _, item := range suggest.Suggest {
       if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {

@@ -20,6 +20,7 @@ type SuggestTrieDescendant struct {
 type SuggestItems struct {
   Class   string
   Suggest []*SuggestTrieItem
+  Classes []string
 }
 
 func (s *SuggestItems) Len() int {
@@ -70,12 +71,23 @@ type SuggestTrieBuilder struct {
 }
 
 func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieItem) {
+  var classes []string
+  if knownClasses, ok := item.OriginalItem.Data["classes"]; ok {
+    if typedClasses, ok := knownClasses.([]interface{}); ok {
+      classes = make([]string, 0, len(typedClasses))
+      for _, class := range typedClasses {
+        if class, ok := class.(string); ok {
+          classes = append(classes, strings.ToLower(class))
+        }
+      }
+    }
+  }
   class := ""
   if knownClass, ok := item.OriginalItem.Data["class"]; ok {
     class = strings.ToLower(knownClass.(string))
   }
   for _, suggest := range s.Suggest {
-    if suggest.Class == class {
+    if suggest.Class == class && Equal(suggest.Classes, classes) {
       heap.Push(suggest, item)
       for len(suggest.Suggest) > maxItemsPerPrefix {
         heap.Pop(suggest)
@@ -86,6 +98,7 @@ func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieIte
   s.Suggest = append(s.Suggest, &SuggestItems{
     Class:   class,
     Suggest: []*SuggestTrieItem{item},
+    Classes: classes,
   })
 }
 
