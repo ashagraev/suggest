@@ -164,8 +164,13 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
   }
   var items []*stpb.Item
   for _, suggestItems := range trie.Items {
-    if _, ok := excludeClasses[suggestItems.Class]; ok {
-      continue
+    for _, class := range suggestItems.Classes {
+      if _, ok := excludeClasses[class]; ok {
+        continue
+      }
+      if _, ok := classes[class]; !ok && len(classes) > 0 {
+        continue
+      }
     }
     if _, ok := classes[suggestItems.Class]; !ok && len(classes) > 0 {
       continue
