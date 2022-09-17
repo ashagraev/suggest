@@ -5,6 +5,7 @@ import (
   "reflect"
   "sort"
   "strings"
+  "encoding/json"
 )
 
 type SuggestTrieItem struct {
@@ -72,14 +73,8 @@ type SuggestTrieBuilder struct {
 
 func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieItem) {
   var classes []string
-  if knownClasses, ok := item.OriginalItem.Data["classes"]; ok {
-    if typedClasses, ok := knownClasses.([]interface{}); ok {
-      classes = make([]string, 0, len(typedClasses))
-      for _, class := range typedClasses {
-        if class, ok := class.(string); ok {
-          classes = append(classes, strings.ToLower(class))
-        }
-      }
+  if knownClasses, err := json.Marshal(item.OriginalItem.Data["classes"]); err == nil {
+    if err := json.Unmarshal(knownClasses, &classes); err == nil {
     }
   }
   class := ""
@@ -87,7 +82,7 @@ func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieIte
     class = strings.ToLower(knownClass.(string))
   }
   for _, suggest := range s.Suggest {
-    if suggest.Class == class && Equal(suggest.Classes, classes) {
+    if suggest.Class == class || AtLeastOneEqual(suggest.Classes, classes) {
       heap.Push(suggest, item)
       for len(suggest.Suggest) > maxItemsPerPrefix {
         heap.Pop(suggest)

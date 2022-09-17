@@ -12,15 +12,15 @@ func PrepareCheckMap(values []string) map[string]bool {
   return valuesMap
 }
 
-func Equal[T comparable](first, second []T) bool {
-  if len(first) != len(second) {
-    return false
+func AtLeastOneEqual(first, second []string) bool {
+  if len(first) > len(second) {
+    first, second = second, first
   }
   for idx, valueFirst := range first {
     valueSecond := second[idx]
-    if valueFirst != valueSecond {
-      return false
+    if valueFirst == valueSecond {
+      return true
     }
   }
-  return true
+  return false
 }
