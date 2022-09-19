@@ -1,6 +1,6 @@
 module main
 
-go 1.18
+go 1.17
 
 require (
 	github.com/microcosm-cc/bluemonday v1.0.17

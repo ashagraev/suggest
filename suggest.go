@@ -94,16 +94,18 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
     builder.Add(0, item.NormalizedText, veroheadItemsCount, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
+      Classes:      item.Classes,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
       builder.Add(0, strings.Join(parts[i:], " "), veroheadItemsCount, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
+        Classes:      item.Classes,
       })
     }
     if (idx+1)%100000 == 0 {
-      log.Printf("addedd %d items of %d to suggest", idx+1, len(items))
+      log.Printf("added %d items of %d to suggest", idx+1, len(items))
     }
   }
   log.Printf("finalizing suggest")
@@ -141,7 +143,7 @@ func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextB
   return textBlocks
 }
 
-func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeClasses map[string]bool) []*stpb.Item {
+func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeClasses []string) []*stpb.Item {
   trie := suggest.Trie
   for _, c := range prefix {
     found := false
@@ -165,14 +167,10 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
   }
   var items []*stpb.Item
   for _, suggestItems := range trie.Items {
-    excludeItems := false
-    for _, class := range suggestItems.Classes {
-      if _, ok := excludeClasses[class]; ok {
-        excludeItems = true
-        break
-      }
+    if !AtLeastOneEqual(suggestItems.Classes, classes) && len(classes) > 0 {
+      continue
     }
-    if _, ok := classes[suggestItems.Class]; !ok && len(classes) > 0 || excludeItems {
+    if AtLeastOneEqual(suggestItems.Classes, excludeClasses) {
       continue
     }
     for _, itemIdx := range suggestItems.ItemIndexes {
@@ -185,7 +183,7 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
   return items
 }
 
-func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, excludeClasses map[string]bool) []*SuggestAnswerItem {
+func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, excludeClasses []string) []*SuggestAnswerItem {
   trieItems := GetSuggestItems(suggest, []byte(normalizedPart), classes, excludeClasses)
   items := make([]*SuggestAnswerItem, 0)
   if trieItems == nil {

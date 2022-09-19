@@ -2,25 +2,39 @@ package main
 
 import "strings"
 
-func PrepareCheckMap(values []string) map[string]bool {
-  valuesMap := map[string]bool{}
-  for _, value := range values {
-    if value != "" {
-      valuesMap[strings.ToLower(value)] = true
-    }
+func Contains(source []string, item string) bool {
+  sourceMap := map[string]bool{}
+  for _, value := range source {
+    sourceMap[strings.ToLower(value)] = true
   }
-  return valuesMap
+  if _, ok := sourceMap[strings.ToLower(item)]; ok {
+    return true
+  }
+  return false
 }
 
 func AtLeastOneEqual(first, second []string) bool {
-  if len(first) > len(second) {
-    first, second = second, first
+  firstMap := map[string]bool{}
+  for _, firstValue := range first {
+    firstMap[strings.ToLower(firstValue)] = true
   }
-  for idx, valueFirst := range first {
-    valueSecond := second[idx]
-    if valueFirst == valueSecond {
+  for _, secondValue := range second {
+    if _, ok := firstMap[strings.ToLower(secondValue)]; ok {
       return true
     }
   }
   return false
+}
+
+func Equal(first, second []string) bool {
+  if len(first) != len(second) {
+    return false
+  }
+  for idx, firstValue := range first {
+    secondValue := second[idx]
+    if firstValue != secondValue {
+      return false
+    }
+  }
+  return true
 }

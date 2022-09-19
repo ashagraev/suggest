@@ -1,16 +1,15 @@
 package main
 
 import (
-  "container/heap"
   "reflect"
   "sort"
-  "strings"
-  "encoding/json"
+  "container/heap"
 )
 
 type SuggestTrieItem struct {
   Weight       float32
   OriginalItem *Item
+  Classes      []string
 }
 
 type SuggestTrieDescendant struct {
@@ -72,17 +71,8 @@ type SuggestTrieBuilder struct {
 }
 
 func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieItem) {
-  var classes []string
-  if knownClasses, err := json.Marshal(item.OriginalItem.Data["classes"]); err == nil {
-    if err := json.Unmarshal(knownClasses, &classes); err == nil {
-    }
-  }
-  class := ""
-  if knownClass, ok := item.OriginalItem.Data["class"]; ok {
-    class = strings.ToLower(knownClass.(string))
-  }
   for _, suggest := range s.Suggest {
-    if suggest.Class == class || AtLeastOneEqual(suggest.Classes, classes) {
+    if Equal(suggest.Classes, item.Classes) {
       heap.Push(suggest, item)
       for len(suggest.Suggest) > maxItemsPerPrefix {
         heap.Pop(suggest)
@@ -91,9 +81,8 @@ func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieIte
     }
   }
   s.Suggest = append(s.Suggest, &SuggestItems{
-    Class:   class,
     Suggest: []*SuggestTrieItem{item},
-    Classes: classes,
+    Classes: item.Classes,
   })
 }
 

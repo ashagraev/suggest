@@ -16,6 +16,7 @@ type Item struct {
   OriginalText   string
   NormalizedText string
   Data           map[string]interface{}
+  Classes        []string
 }
 
 func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
@@ -31,11 +32,25 @@ func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
   if err := json.Unmarshal([]byte(parts[2]), &data); err != nil {
     return nil, fmt.Errorf("cannot parse data json: %v", err)
   }
+  classes := make([]string, 0)
+  dataClasses, err := json.Marshal(data["classes"])
+  if err != nil {
+    return nil, fmt.Errorf("cannot convert data in json: %v", err)
+  }
+  if err := json.Unmarshal(dataClasses, &classes); err != nil {
+    return nil, fmt.Errorf("cannot parse data json: %v", err)
+  }
+  if deprecatedClass, ok := data["class"].(string); ok {
+    if !Contains(classes, deprecatedClass) {
+      classes = append(classes, deprecatedClass)
+    }
+  }
   return &Item{
     Weight:         float32(weight),
     NormalizedText: NormalizeString(parts[0], policy),
     OriginalText:   parts[0],
     Data:           data,
+    Classes:        classes,
   }, nil
 }
 
