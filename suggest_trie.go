@@ -1,15 +1,14 @@
 package main
 
 import (
-  "container/heap"
   "reflect"
   "sort"
-  "strings"
 )
 
 type SuggestTrieItem struct {
   Weight       float32
   OriginalItem *Item
+  Classes      []string
 }
 
 type SuggestTrieDescendant struct {
@@ -18,7 +17,7 @@ type SuggestTrieDescendant struct {
 }
 
 type SuggestItems struct {
-  Class   string
+  Classes []string
   Suggest []*SuggestTrieItem
 }
 
@@ -35,7 +34,14 @@ func (s *SuggestItems) Swap(i, j int) {
 }
 
 func (s *SuggestItems) Push(x interface{}) {
-  s.Suggest = append(s.Suggest, x.(*SuggestTrieItem))
+  item := x.(*SuggestTrieItem)
+  m := PrepareBoolMap(s.Classes, false)
+  for _, c := range item.Classes {
+    if _, ok := m[c]; !ok {
+      s.Classes = append(s.Classes, c)
+    }
+  }
+  s.Suggest = append(s.Suggest, item)
 }
 
 func (s *SuggestItems) Pop() interface{} {
@@ -70,21 +76,22 @@ type SuggestTrieBuilder struct {
 }
 
 func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieItem) {
-  class := ""
-  if knownClass, ok := item.OriginalItem.Data["class"]; ok {
-    class = strings.ToLower(knownClass.(string))
-  }
+  itemClassesMap := PrepareBoolMap(item.Classes, false)
   for _, suggest := range s.Suggest {
-    if suggest.Class == class {
-      heap.Push(suggest, item)
-      for len(suggest.Suggest) > maxItemsPerPrefix {
-        heap.Pop(suggest)
+    for _, suggestClass := range suggest.Classes {
+      _, ok := itemClassesMap[suggestClass]
+      if !ok {
+        continue
+      }
+      suggest.Push(item)
+      for suggest.Len() > maxItemsPerPrefix {
+        suggest.Pop()
       }
       return
     }
   }
   s.Suggest = append(s.Suggest, &SuggestItems{
-    Class:   class,
+    Classes: item.Classes,
     Suggest: []*SuggestTrieItem{item},
   })
 }

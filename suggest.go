@@ -8,6 +8,8 @@ import (
   stpb "main/proto/suggest/suggest_trie"
   "sort"
   "strings"
+  "encoding/json"
+  "fmt"
 )
 
 type SuggestionTextBlock struct {
@@ -19,6 +21,11 @@ type SuggestAnswerItem struct {
   Weight     float32                `json:"weight"`
   Data       map[string]interface{} `json:"data"`
   TextBlocks []*SuggestionTextBlock `json:"text"`
+}
+
+type SuggestTrieItemClasses struct {
+  Classes []string `json:"classes"`
+  Class   string   `json:"class"` // deprecated
 }
 
 type PaginatedSuggestResponse struct {
@@ -51,7 +58,7 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
   }
   for _, suggest := range builder.Suggest {
     trieItems := &stpb.ClassItems{
-      Class: suggest.Class,
+      Classes: suggest.Classes,
     }
     for _, item := range suggest.Suggest {
       if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
@@ -90,15 +97,21 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   veroheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
+    itemClasses, err := extractItemClasses(item)
+    if err != nil {
+      return nil, fmt.Errorf("unable to extract item classes: %v", err)
+    }
     builder.Add(0, item.NormalizedText, veroheadItemsCount, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
+      Classes:      itemClasses,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
       builder.Add(0, strings.Join(parts[i:], " "), veroheadItemsCount, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
+        Classes:      itemClasses,
       })
     }
     if (idx+1)%100000 == 0 {
@@ -110,6 +123,27 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   return Transform(builder)
 }
 
+func extractItemClasses(item *Item) ([]string, error) {
+  b, err := json.Marshal(item.Data)
+  if err != nil {
+    return nil, fmt.Errorf("cannot convert data to json: %v", err)
+  }
+  params := &SuggestTrieItemClasses{}
+  if err := json.Unmarshal(b, params); err != nil {
+    return nil, fmt.Errorf("cannot parse json data: %v", err)
+  }
+  classes := params.Classes
+  deprecatedClass := params.Class
+
+  if len(classes) == 0 && deprecatedClass != "" {
+    return append(classes, deprecatedClass), nil
+  }
+  itemClassesMap := PrepareBoolMap(classes, false)
+  if _, ok := itemClassesMap[deprecatedClass]; !ok {
+    classes = append(classes)
+  }
+  return classes, nil
+}
 func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
   alphaLoweredPart := strings.ToLower(AlphaNormalizeString(originalPart))
   loweredSuggest := strings.ToLower(originalSuggest)
@@ -164,21 +198,26 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
   }
   var items []*stpb.Item
   for _, suggestItems := range trie.Items {
+    addItems := false
     for _, class := range suggestItems.Classes {
+      class := strings.ToLower(class)
       if _, ok := excludeClasses[class]; ok {
-        continue
+        addItems = false
+        break
       }
       if _, ok := classes[class]; !ok && len(classes) > 0 {
         continue
       }
+      addItems = true
     }
-    if _, ok := classes[suggestItems.Class]; !ok && len(classes) > 0 {
+    if !addItems {
       continue
     }
     for _, itemIdx := range suggestItems.ItemIndexes {
       items = append(items, suggest.Items[itemIdx])
     }
   }
+
   sort.Slice(items, func(i, j int) bool {
     return items[i].Weight > items[j].Weight
   })
