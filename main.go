@@ -4,9 +4,9 @@ import (
   "flag"
   "github.com/microcosm-cc/bluemonday"
   "google.golang.org/protobuf/proto"
-  "io/ioutil"
   "log"
   "net/http"
+  "os"
 )
 
 func getPolicy() *bluemonday.Policy {
@@ -29,7 +29,7 @@ func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPre
     log.Fatalln(err)
   }
   log.Printf("writing the resulting proto suggest data to %s", suggestDataPath)
-  if err := ioutil.WriteFile(suggestDataPath, b, 0644); err != nil {
+  if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
     log.Fatalln(err)
   }
 }

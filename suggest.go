@@ -3,11 +3,11 @@ package main
 import (
   "google.golang.org/protobuf/proto"
   "google.golang.org/protobuf/types/known/structpb"
-  "io/ioutil"
   "log"
   stpb "main/proto/suggest/suggest_trie"
   "sort"
   "strings"
+  "os"
 )
 
 type SuggestionTextBlock struct {
@@ -202,7 +202,7 @@ func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart s
 }
 
 func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
-  b, err := ioutil.ReadFile(suggestDataPath)
+  b, err := os.ReadFile(suggestDataPath)
   if err != nil {
     return nil, err
   }
