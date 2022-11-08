@@ -4,7 +4,7 @@ package suggest_trie;
 
 import "google/protobuf/struct.proto";
 
-option go_package = "suggest/suggest_trie";
+option go_package = "suggest_trie/proto";
 
 message Item {
   float Weight = 1;
@@ -12,8 +12,8 @@ message Item {
   google.protobuf.Struct Data = 4;
 }
 
-message ClassItems {
-  string Class = 1;
+message ClassesItems {
+  repeated string Classes = 1;
   repeated float ItemWeights = 2;
   repeated uint32 ItemIndexes = 3;
 }
@@ -21,7 +21,7 @@ message ClassItems {
 message SuggestTrie {
   repeated uint32 DescendantKeys = 1;
   repeated SuggestTrie DescendantTries = 2;
-  repeated ClassItems Items = 4;
+  repeated ClassesItems Items = 4;
 }
 
 message SuggestData {

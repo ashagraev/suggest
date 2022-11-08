@@ -2,12 +2,17 @@ package utils
 
 import "strings"
 
-func PrepareBoolMap(keys []string) map[string]bool {
-	m := map[string]bool{}
-	for _, key := range keys {
-		if strings.TrimSpace(key) != "" {
-			m[strings.ToLower(key)] = true
-		}
-	}
-	return m
+func PrepareBoolMap(keys []string, caseSensitivity bool) map[string]bool {
+  m := map[string]bool{}
+  for _, key := range keys {
+    key = strings.TrimSpace(key)
+    if key == "" {
+      continue
+    }
+    if caseSensitivity {
+      key = strings.ToLower(key)
+    }
+    m[key] = true
+  }
+  return m
 }
