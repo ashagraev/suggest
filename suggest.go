@@ -8,6 +8,8 @@ import (
   "sort"
   "strings"
   "os"
+  "encoding/json"
+  "fmt"
 )
 
 type SuggestionTextBlock struct {
@@ -19,6 +21,11 @@ type SuggestAnswerItem struct {
   Weight     float32                `json:"weight"`
   Data       map[string]interface{} `json:"data"`
   TextBlocks []*SuggestionTextBlock `json:"text"`
+}
+
+type SuggestTrieItemClasses struct {
+  Classes []string `json:"classes"`
+  Class   string   `json:"class"` // deprecated
 }
 
 type PaginatedSuggestResponse struct {
@@ -51,7 +58,7 @@ func (pt *ProtoTransformer) TransformTrie(builder *SuggestTrieBuilder) (*stpb.Su
   }
   for _, suggest := range builder.Suggest {
     trieItems := &stpb.ClassItems{
-      Class: suggest.Class,
+      Classes: suggest.Classes,
     }
     for _, item := range suggest.Suggest {
       if _, ok := pt.ItemsMap[item.OriginalItem]; !ok {
@@ -90,15 +97,21 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
+    itemClasses, err := extractItemClasses(item.Data)
+    if err != nil {
+      return nil, fmt.Errorf("unable to extract item classes: %v", err)
+    }
     builder.Add(0, item.NormalizedText, overheadItemsCount, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
+      Classes:      itemClasses,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
       builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
+        Classes:      itemClasses,
       })
     }
     if (idx+1)%100000 == 0 {
@@ -108,6 +121,25 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   log.Printf("finalizing suggest")
   builder.Finalize(maxItemsPerPrefix)
   return Transform(builder)
+}
+
+func extractItemClasses(item map[string]interface{}) ([]string, error) {
+  b, err := json.Marshal(item)
+  if err != nil {
+    return nil, fmt.Errorf("cannot convert data to json: %v", err)
+  }
+  params := &SuggestTrieItemClasses{}
+  if err := json.Unmarshal(b, params); err != nil {
+    return nil, fmt.Errorf("cannot parse json data: %v", err)
+  }
+  classes := params.Classes
+  deprecatedClass := params.Class
+
+  itemClassesMap := PrepareBoolMap(classes, false)
+  if _, ok := itemClassesMap[deprecatedClass]; !ok {
+    classes = append(classes, deprecatedClass)
+  }
+  return classes, nil
 }
 
 func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
@@ -163,26 +195,42 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
     }
   }
   var items []*stpb.Item
+  seenItems := map[string]bool{}
   for _, suggestItems := range trie.Items {
-    for _, class := range suggestItems.Classes {
-      if _, ok := excludeClasses[class]; ok {
-        continue
-      }
-      if _, ok := classes[class]; !ok && len(classes) > 0 {
-        continue
-      }
-    }
-    if _, ok := classes[suggestItems.Class]; !ok && len(classes) > 0 {
+    if !hasClass(suggestItems.Classes, classes) && len(classes) > 0 {
       continue
     }
     for _, itemIdx := range suggestItems.ItemIndexes {
-      items = append(items, suggest.Items[itemIdx])
+      item := suggest.Items[itemIdx]
+      if _, ok := seenItems[item.OriginalText]; ok {
+        continue
+      }
+      classes, err := extractItemClasses(item.Data.AsMap())
+      if err != nil {
+        log.Printf("cannot extract item classes: %v", err)
+        continue
+      }
+      if hasClass(classes, excludeClasses) {
+        continue
+      }
+      items = append(items, item)
+      seenItems[item.OriginalText] = true
     }
   }
+
   sort.Slice(items, func(i, j int) bool {
     return items[i].Weight > items[j].Weight
   })
   return items
+}
+
+func hasClass(suggestClasses []string, requiredClasses map[string]bool) bool {
+  for _, class := range suggestClasses {
+    if _, ok := requiredClasses[strings.ToLower(class)]; ok {
+      return true
+    }
+  }
+  return false
 }
 
 func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, excludeClasses map[string]bool) []*SuggestAnswerItem {
