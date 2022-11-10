@@ -35,12 +35,6 @@ func (s *SuggestItems) Swap(i, j int) {
 
 func (s *SuggestItems) Push(x interface{}) {
   item := x.(*SuggestTrieItem)
-  m := PrepareBoolMap(s.Classes, false)
-  for _, c := range item.Classes {
-    if _, ok := m[c]; !ok {
-      s.Classes = append(s.Classes, c)
-    }
-  }
   s.Suggest = append(s.Suggest, item)
 }
 
@@ -76,11 +70,10 @@ type SuggestTrieBuilder struct {
 }
 
 func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieItem) {
-  itemClassesMap := PrepareBoolMap(item.Classes, false)
-  for _, suggest := range s.Suggest {
-    for _, suggestClass := range suggest.Classes {
-      _, ok := itemClassesMap[suggestClass]
-      if !ok {
+  for _, itemClass := range item.Classes {
+    for _, suggest := range s.Suggest {
+      suggestClasses := PrepareBoolMap(suggest.Classes, false)
+      if _, ok := suggestClasses[itemClass]; !ok {
         continue
       }
       suggest.Push(item)
@@ -89,11 +82,11 @@ func (s *SuggestTrieBuilder) addItem(maxItemsPerPrefix int, item *SuggestTrieIte
       }
       return
     }
+    s.Suggest = append(s.Suggest, &SuggestItems{
+      Classes: item.Classes,
+      Suggest: []*SuggestTrieItem{item},
+    })
   }
-  s.Suggest = append(s.Suggest, &SuggestItems{
-    Classes: item.Classes,
-    Suggest: []*SuggestTrieItem{item},
-  })
 }
 
 func (s *SuggestTrieBuilder) Add(position int, text string, maxItemsPerPrefix int, item *SuggestTrieItem) {

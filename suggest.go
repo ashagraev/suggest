@@ -135,12 +135,9 @@ func extractItemClasses(item *Item) ([]string, error) {
   classes := params.Classes
   deprecatedClass := params.Class
 
-  if len(classes) == 0 && deprecatedClass != "" {
-    return append(classes, deprecatedClass), nil
-  }
   itemClassesMap := PrepareBoolMap(classes, false)
   if _, ok := itemClassesMap[deprecatedClass]; !ok {
-    classes = append(classes)
+    classes = append(classes, deprecatedClass)
   }
   return classes, nil
 }
@@ -197,24 +194,21 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
     }
   }
   var items []*stpb.Item
+  seenItems := map[string]bool{}
   for _, suggestItems := range trie.Items {
-    addItems := false
-    for _, class := range suggestItems.Classes {
-      class := strings.ToLower(class)
-      if _, ok := excludeClasses[class]; ok {
-        addItems = false
-        break
-      }
-      if _, ok := classes[class]; !ok && len(classes) > 0 {
-        continue
-      }
-      addItems = true
+    if !hasClass(suggestItems.Classes, classes) && len(classes) > 0 {
+      continue
     }
-    if !addItems {
+    if hasClass(suggestItems.Classes, excludeClasses) {
       continue
     }
     for _, itemIdx := range suggestItems.ItemIndexes {
-      items = append(items, suggest.Items[itemIdx])
+      item := suggest.Items[itemIdx]
+      if _, ok := seenItems[item.OriginalText]; ok {
+        continue
+      }
+      items = append(items, item)
+      seenItems[item.OriginalText] = true
     }
   }
 
@@ -222,6 +216,15 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
     return items[i].Weight > items[j].Weight
   })
   return items
+}
+
+func hasClass(suggestClasses []string, requiredClasses map[string]bool) bool {
+  for _, class := range suggestClasses {
+    if _, ok := requiredClasses[strings.ToLower(class)]; ok {
+      return true
+    }
+  }
+  return false
 }
 
 func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart string, classes, excludeClasses map[string]bool) []*SuggestAnswerItem {
