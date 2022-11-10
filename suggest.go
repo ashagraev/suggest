@@ -3,11 +3,11 @@ package main
 import (
   "google.golang.org/protobuf/proto"
   "google.golang.org/protobuf/types/known/structpb"
-  "io/ioutil"
   "log"
   stpb "main/proto/suggest/suggest_trie"
   "sort"
   "strings"
+  "os"
   "encoding/json"
   "fmt"
 )
@@ -94,28 +94,28 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
 }
 
 func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
-  veroheadItemsCount := maxItemsPerPrefix * 2
+  overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
     itemClasses, err := extractItemClasses(item)
     if err != nil {
       return nil, fmt.Errorf("unable to extract item classes: %v", err)
     }
-    builder.Add(0, item.NormalizedText, veroheadItemsCount, &SuggestTrieItem{
+    builder.Add(0, item.NormalizedText, overheadItemsCount, &SuggestTrieItem{
       Weight:       item.Weight,
       OriginalItem: item,
       Classes:      itemClasses,
     })
     parts := strings.Split(item.NormalizedText, " ")
     for i := 1; i < len(parts); i++ {
-      builder.Add(0, strings.Join(parts[i:], " "), veroheadItemsCount, &SuggestTrieItem{
+      builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
         Weight:       item.Weight * postfixWeightFactor,
         OriginalItem: item,
         Classes:      itemClasses,
       })
     }
     if (idx+1)%100000 == 0 {
-      log.Printf("addedd %d items of %d to suggest", idx+1, len(items))
+      log.Printf("added %d items of %d to suggest", idx+1, len(items))
     }
   }
   log.Printf("finalizing suggest")
@@ -141,6 +141,7 @@ func extractItemClasses(item *Item) ([]string, error) {
   }
   return classes, nil
 }
+
 func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
   alphaLoweredPart := strings.ToLower(AlphaNormalizeString(originalPart))
   loweredSuggest := strings.ToLower(originalSuggest)
@@ -244,7 +245,7 @@ func GetSuggest(suggest *stpb.SuggestData, originalPart string, normalizedPart s
 }
 
 func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
-  b, err := ioutil.ReadFile(suggestDataPath)
+  b, err := os.ReadFile(suggestDataPath)
   if err != nil {
     return nil, err
   }
