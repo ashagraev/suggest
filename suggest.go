@@ -97,7 +97,7 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
-    itemClasses, err := extractItemClasses(item)
+    itemClasses, err := extractItemClasses(item.Data)
     if err != nil {
       return nil, fmt.Errorf("unable to extract item classes: %v", err)
     }
@@ -123,8 +123,8 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
   return Transform(builder)
 }
 
-func extractItemClasses(item *Item) ([]string, error) {
-  b, err := json.Marshal(item.Data)
+func extractItemClasses(item map[string]interface{}) ([]string, error) {
+  b, err := json.Marshal(item)
   if err != nil {
     return nil, fmt.Errorf("cannot convert data to json: %v", err)
   }
@@ -200,12 +200,17 @@ func GetSuggestItems(suggest *stpb.SuggestData, prefix []byte, classes, excludeC
     if !hasClass(suggestItems.Classes, classes) && len(classes) > 0 {
       continue
     }
-    if hasClass(suggestItems.Classes, excludeClasses) {
-      continue
-    }
     for _, itemIdx := range suggestItems.ItemIndexes {
       item := suggest.Items[itemIdx]
       if _, ok := seenItems[item.OriginalText]; ok {
+        continue
+      }
+      classes, err := extractItemClasses(item.Data.AsMap())
+      if err != nil {
+        log.Printf("cannot extract item classes: %v", err)
+        continue
+      }
+      if hasClass(classes, excludeClasses) {
         continue
       }
       items = append(items, item)
