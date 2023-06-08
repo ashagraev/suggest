@@ -1,11 +1,8 @@
 package main
 
 import (
-  "bytes"
-  "encoding/json"
-  "fmt"
   "github.com/microcosm-cc/bluemonday"
-  "log"
+  "main/network"
   stpb "main/proto/suggest/suggest_trie"
   "math"
   "net/http"
@@ -19,47 +16,8 @@ type Handler struct {
   EqualShapedNormalize bool
 }
 
-func writeCORSHeaders(w http.ResponseWriter) {
-  w.Header().Add("Access-Control-Allow-Origin", "*")
-  w.Header().Add("Access-Control-Allow-Methods", "OPTIONS,POST,GET")
-}
-
-func reportServerError(w http.ResponseWriter, message string) {
-  writeCORSHeaders(w)
-  w.WriteHeader(http.StatusInternalServerError)
-  if _, err := w.Write([]byte(message)); err != nil {
-    log.Printf("cannot write a message: %v", err)
-  }
-}
-
-func reportSuccessMessage(w http.ResponseWriter, message string) {
-  writeCORSHeaders(w)
-  w.WriteHeader(http.StatusOK)
-  if _, err := w.Write([]byte(message)); err != nil {
-    log.Printf("cannot write a message: %v", err)
-  }
-}
-
-func reportSuccessData(w http.ResponseWriter, data interface{}) {
-  j, err := json.Marshal(data)
-  if err != nil {
-    reportServerError(w, fmt.Sprintf("%v", err))
-    return
-  }
-  var b bytes.Buffer
-  if err := json.Indent(&b, j, "", "  "); err != nil {
-    reportServerError(w, fmt.Sprintf("%v", err))
-    return
-  }
-  writeCORSHeaders(w)
-  w.WriteHeader(http.StatusOK)
-  if _, err := w.Write(b.Bytes()); err != nil {
-    log.Printf("cannot write a message: %v", err)
-  }
-}
-
 func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
-  reportSuccessMessage(w, "OK")
+  network.ReportSuccessMessage(w, "OK")
 }
 
 type PagingParameters struct {
@@ -106,7 +64,7 @@ func (pp *PagingParameters) Apply(suggestions []*SuggestAnswerItem) *PaginatedSu
 }
 
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
-  writeCORSHeaders(w)
+  network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
   if h.EqualShapedNormalize {
     part = ToEqualShapedLatin(part)
@@ -124,13 +82,13 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
   if pagingParameters.PaginationOn {
-    reportSuccessData(w, pagingParameters.Apply(suggestions))
+    network.ReportSuccessData(w, pagingParameters.Apply(suggestions))
   } else {
     if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
       if count != 0 && len(suggestions) > int(count) {
         suggestions = suggestions[:count]
       }
     }
-    reportSuccessData(w, suggestions)
+    network.ReportSuccessData(w, suggestions)
   }
 }
