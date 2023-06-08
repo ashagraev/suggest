@@ -1,6 +1,13 @@
 package main
 
-import "strings"
+import (
+  "github.com/microcosm-cc/bluemonday"
+  "strings"
+)
+
+func getPolicy() *bluemonday.Policy {
+  return bluemonday.StrictPolicy()
+}
 
 func PrepareCheckMap(values []string) map[string]bool {
   valuesMap := map[string]bool{}

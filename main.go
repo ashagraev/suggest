@@ -2,16 +2,11 @@ package main
 
 import (
   "flag"
-  "github.com/microcosm-cc/bluemonday"
   "google.golang.org/protobuf/proto"
   "log"
   "net/http"
   "os"
 )
-
-func getPolicy() *bluemonday.Policy {
-  return bluemonday.StrictPolicy()
-}
 
 func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
   policy := getPolicy()
