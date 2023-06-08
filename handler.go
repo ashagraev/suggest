@@ -75,6 +75,7 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
+  withVersion, _ := strconv.ParseBool(r.URL.Query().Get("with-version"))
   classes := r.URL.Query()["class"]
   classesMap := PrepareCheckMap(classes)
   excludeClasses := r.URL.Query()["exclude-class"]
@@ -86,20 +87,26 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   if pagingParameters.PaginationOn {
     resp = pagingParameters.Apply(suggestions)
   } else {
-    if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
-      if count != 0 && len(suggestions) > int(count) {
-        suggestions = suggestions[:count]
-      }
+    count := pagingParameters.Count
+    if count != 0 && len(suggestions) > count {
+      suggestions = suggestions[:count]
     }
     resp = suggestions
   }
 
+  if !withVersion {
+    network.ReportSuccessData(w, resp)
+    return
+  }
+
   switch response := resp.(type) {
   case *PaginatedSuggestResponse:
+    response.Version = h.Suggest.Version
     network.ReportSuccessData(w, response)
   case []*SuggestAnswerItem:
     defaultResp := &SuggestResponse{
       Suggestions: response,
+      Version:     h.Suggest.Version,
     }
     network.ReportSuccessData(w, defaultResp.Suggestions)
   }

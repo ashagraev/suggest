@@ -20,6 +20,7 @@ func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPre
   if err != nil {
     log.Fatalln(err)
   }
+  SetVersion(suggestData)
   log.Printf("marshalling suggest as proto")
   b, err := proto.Marshal(suggestData)
   if err != nil {
