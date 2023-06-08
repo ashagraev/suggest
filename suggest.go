@@ -5,9 +5,9 @@ import (
   "google.golang.org/protobuf/types/known/structpb"
   "log"
   stpb "main/proto/suggest/suggest_trie"
+  "os"
   "sort"
   "strings"
-  "os"
 )
 
 type SuggestionTextBlock struct {
@@ -86,7 +86,12 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
   }, nil
 }
 
-func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
+func BuildSuggest(
+  items []*Item,
+  maxItemsPerPrefix int,
+  postfixWeightFactor float32,
+  disableNormalizedParts bool,
+) (*stpb.SuggestData, error) {
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
@@ -94,13 +99,17 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
       Weight:       item.Weight,
       OriginalItem: item,
     })
-    parts := strings.Split(item.NormalizedText, " ")
-    for i := 1; i < len(parts); i++ {
-      builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
-        Weight:       item.Weight * postfixWeightFactor,
-        OriginalItem: item,
-      })
+
+    if !disableNormalizedParts {
+      parts := strings.Split(item.NormalizedText, " ")
+      for i := 1; i < len(parts); i++ {
+        builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
+          Weight:       item.Weight * postfixWeightFactor,
+          OriginalItem: item,
+        })
+      }
     }
+
     if (idx+1)%100000 == 0 {
       log.Printf("added %d items of %d to suggest", idx+1, len(items))
     }

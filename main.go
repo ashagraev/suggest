@@ -10,13 +10,19 @@ import (
   "syscall"
 )
 
-func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
+func doBuildSuggest(
+  inputFilePath string,
+  suggestDataPath string,
+  maxItemsPerPrefix int,
+  suffixFactor float64,
+  disableNormalizedParts bool,
+) {
   policy := getPolicy()
   items, err := LoadItems(inputFilePath, policy)
   if err != nil {
     log.Fatalln(err)
   }
-  suggestData, err := BuildSuggest(items, maxItemsPerPrefix, float32(suffixFactor))
+  suggestData, err := BuildSuggest(items, maxItemsPerPrefix, float32(suffixFactor), disableNormalizedParts)
   if err != nil {
     log.Fatalln(err)
   }
@@ -63,6 +69,8 @@ func main() {
   maxItemsPerPrefix := flag.Int("count", 10, "number of suggestions to return")
   suffixSuggestFactor := flag.Float64("suffix-factor", 1e-5, "a weight multiplier for the suffix suggest")
   equalShapedNormalize := flag.Bool("equal-shaped-normalize", false, "additional normalization for cyrillic symbols")
+  disableNormalizedParts := flag.Bool("disable-normalized-parts", false, "build suggest without normalized parts")
+
   port := flag.String("port", "8080", "daemon port")
   flag.Parse()
 
@@ -70,7 +78,7 @@ func main() {
     log.Fatalln("please specify the suggest data path via the --suggest parameter")
   }
   if *inputFilePath != "" {
-    doBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor)
+    doBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *disableNormalizedParts)
     return
   }
 
