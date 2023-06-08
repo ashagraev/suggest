@@ -94,11 +94,7 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
     resp = suggestions
   }
 
-  writeResponse(w, resp)
-}
-
-func writeResponse(w http.ResponseWriter, response interface{}) {
-  switch r := response.(type) {
+  switch r := resp.(type) {
   case *PaginatedSuggestResponse:
     network.ReportSuccessData(w, r)
   case []*SuggestAnswerItem:
