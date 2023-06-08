@@ -6,6 +6,8 @@ import (
   "log"
   "net/http"
   "os"
+  "os/signal"
+  "syscall"
 )
 
 func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
@@ -29,6 +31,32 @@ func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPre
   }
 }
 
+func RunServingSuggest(suggestDataPath, port string, equalShapedNormalize bool) {
+  suggestData, err := LoadSuggest(suggestDataPath)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  h := &Handler{
+    Suggest:              suggestData,
+    Policy:               getPolicy(),
+    EqualShapedNormalize: equalShapedNormalize,
+  }
+
+  log.Println("ready to serve")
+
+  http.Handle("/suggest", http.HandlerFunc(h.HandleSuggestRequest))
+  http.Handle("/health", http.HandlerFunc(h.HandleHealthRequest))
+  http.Handle("/", http.HandlerFunc(h.HandleHealthRequest))
+
+  go ContinuouslyServe(port)
+}
+
+func ContinuouslyServe(port string) {
+  if err := http.ListenAndServe(":"+port, nil); err != nil {
+    log.Fatalf("fatal error in ListenAndServe: %v", err)
+  }
+}
+
 func main() {
   inputFilePath := flag.String("input", "", "input data file path")
   suggestDataPath := flag.String("suggest", "", "suggest data file path")
@@ -46,24 +74,9 @@ func main() {
     return
   }
 
-  suggestData, err := LoadSuggest(*suggestDataPath)
-  if err != nil {
-    log.Fatalln(err)
-  }
-  h := &Handler{
-    Suggest:              suggestData,
-    Policy:               getPolicy(),
-    EqualShapedNormalize: *equalShapedNormalize,
-  }
+  RunServingSuggest(*suggestDataPath, *port, *equalShapedNormalize)
 
-  log.Println("ready to serve")
-
-  http.Handle("/suggest", http.HandlerFunc(h.HandleSuggestRequest))
-  http.Handle("/health", http.HandlerFunc(h.HandleHealthRequest))
-  http.Handle("/", http.HandlerFunc(h.HandleHealthRequest))
-
-  err = http.ListenAndServe(":"+*port, nil)
-  if err != nil {
-    log.Fatalf("fatal error in ListenAndServe: %v", err)
-  }
+  exitSignal := make(chan os.Signal)
+  signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+  <-exitSignal
 }
