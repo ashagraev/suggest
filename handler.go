@@ -101,6 +101,6 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
     defaultResp := &SuggestResponse{
       Suggestions: response,
     }
-    network.ReportSuccessData(w, defaultResp)
+    network.ReportSuccessData(w, defaultResp.Suggestions)
   }
 }
