@@ -5,9 +5,9 @@ import (
   "google.golang.org/protobuf/types/known/structpb"
   "log"
   stpb "main/proto/suggest/suggest_trie"
+  "os"
   "sort"
   "strings"
-  "os"
 )
 
 type SuggestionTextBlock struct {
@@ -19,6 +19,10 @@ type SuggestAnswerItem struct {
   Weight     float32                `json:"weight"`
   Data       map[string]interface{} `json:"data"`
   TextBlocks []*SuggestionTextBlock `json:"text"`
+}
+
+type SuggestResponse struct {
+  Suggestions []*SuggestAnswerItem `json:"suggestions"`
 }
 
 type PaginatedSuggestResponse struct {
