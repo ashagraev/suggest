@@ -94,12 +94,12 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
     resp = suggestions
   }
 
-  switch r := resp.(type) {
+  switch response := resp.(type) {
   case *PaginatedSuggestResponse:
-    network.ReportSuccessData(w, r)
+    network.ReportSuccessData(w, response)
   case []*SuggestAnswerItem:
     defaultResp := &SuggestResponse{
-      Suggestions: r,
+      Suggestions: response,
     }
     network.ReportSuccessData(w, defaultResp)
   }
