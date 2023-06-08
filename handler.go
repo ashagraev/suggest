@@ -108,6 +108,6 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
       Suggestions: response,
       Version:     h.Suggest.Version,
     }
-    network.ReportSuccessData(w, defaultResp.Suggestions)
+    network.ReportSuccessData(w, defaultResp)
   }
 }
