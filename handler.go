@@ -63,6 +63,24 @@ func (pp *PagingParameters) Apply(suggestions []*SuggestAnswerItem) *PaginatedSu
   }
 }
 
+func generateResponse(
+  suggestions []*SuggestAnswerItem,
+  pagingParameters *PagingParameters,
+) interface{} {
+
+  if pagingParameters.PaginationOn {
+    response := pagingParameters.Apply(suggestions)
+    return response
+  }
+
+  count := pagingParameters.Count
+  if count != 0 && len(suggestions) > count {
+    suggestions = suggestions[:count]
+  }
+
+  return suggestions
+}
+
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
@@ -82,25 +100,5 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
 
-  var resp interface{}
-  if pagingParameters.PaginationOn {
-    resp = pagingParameters.Apply(suggestions)
-  } else {
-    if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
-      if count != 0 && len(suggestions) > int(count) {
-        suggestions = suggestions[:count]
-      }
-    }
-    resp = suggestions
-  }
-
-  switch response := resp.(type) {
-  case *PaginatedSuggestResponse:
-    network.ReportSuccessData(w, response)
-  case []*SuggestAnswerItem:
-    defaultResp := &SuggestResponse{
-      Suggestions: response,
-    }
-    network.ReportSuccessData(w, defaultResp.Suggestions)
-  }
+  network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters))
 }
