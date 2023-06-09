@@ -2,34 +2,12 @@ package main
 
 import (
   "flag"
-  "google.golang.org/protobuf/proto"
   "log"
   "net/http"
   "os"
   "os/signal"
   "syscall"
 )
-
-func doBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
-  policy := getPolicy()
-  items, err := LoadItems(inputFilePath, policy)
-  if err != nil {
-    log.Fatalln(err)
-  }
-  suggestData, err := BuildSuggest(items, maxItemsPerPrefix, float32(suffixFactor))
-  if err != nil {
-    log.Fatalln(err)
-  }
-  log.Printf("marshalling suggest as proto")
-  b, err := proto.Marshal(suggestData)
-  if err != nil {
-    log.Fatalln(err)
-  }
-  log.Printf("writing the resulting proto suggest data to %s", suggestDataPath)
-  if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
-    log.Fatalln(err)
-  }
-}
 
 func RunServingSuggest(suggestDataPath, port string, equalShapedNormalize bool) {
   suggestData, err := LoadSuggest(suggestDataPath)
@@ -70,7 +48,7 @@ func main() {
     log.Fatalln("please specify the suggest data path via the --suggest parameter")
   }
   if *inputFilePath != "" {
-    doBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor)
+    DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor)
     return
   }
 
