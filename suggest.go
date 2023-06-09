@@ -24,7 +24,6 @@ type SuggestAnswerItem struct {
 
 type SuggestResponse struct {
   Suggestions []*SuggestAnswerItem `json:"suggestions"`
-  Version     uint64               `json:"version"`
 }
 
 type PaginatedSuggestResponse struct {
@@ -32,7 +31,6 @@ type PaginatedSuggestResponse struct {
   PageNumber      int                  `json:"page_number"`
   TotalPagesCount int                  `json:"total_pages_count"`
   TotalItemsCount int                  `json:"total_items_count"`
-  Version         uint64               `json:"version"`
 }
 
 type ProtoTransformer struct {
