@@ -20,20 +20,6 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
   network.ReportSuccessMessage(w, "OK")
 }
 
-type VersionParameters struct {
-  VersionOn bool
-}
-
-func NewVersionParameters(query url.Values) *VersionParameters {
-  versionParameters := &VersionParameters{}
-
-  if withVersion, err := strconv.ParseBool(query.Get("with-version")); err == nil { // no err
-    versionParameters.VersionOn = withVersion
-  }
-
-  return versionParameters
-}
-
 type PagingParameters struct {
   Count        int
   Page         int
@@ -95,6 +81,10 @@ func generateResponse(
   return suggestions
 }
 
+func writeVersionHeader(w http.ResponseWriter, version uint64) {
+  w.Header().Add("Suggest-Version", strconv.FormatUint(version, 10))
+}
+
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
@@ -113,11 +103,7 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   excludeClassesMap := PrepareCheckMap(excludeClasses)
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
-  versionParameters := NewVersionParameters(r.URL.Query())
 
-  if versionParameters.VersionOn {
-    w.Header().Add("Suggest-Version", strconv.FormatUint(h.Suggest.Version, 10))
-  }
-
+  writeVersionHeader(w, h.Suggest.Version)
   network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters))
 }
