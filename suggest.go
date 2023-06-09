@@ -8,6 +8,7 @@ import (
   "os"
   "sort"
   "strings"
+  "time"
 )
 
 type SuggestionTextBlock struct {
@@ -23,6 +24,7 @@ type SuggestAnswerItem struct {
 
 type SuggestResponse struct {
   Suggestions []*SuggestAnswerItem `json:"suggestions"`
+  Version     uint64               `json:"version"`
 }
 
 type PaginatedSuggestResponse struct {
@@ -30,6 +32,7 @@ type PaginatedSuggestResponse struct {
   PageNumber      int                  `json:"page_number"`
   TotalPagesCount int                  `json:"total_pages_count"`
   TotalItemsCount int                  `json:"total_items_count"`
+  Version         uint64               `json:"version"`
 }
 
 type ProtoTransformer struct {
@@ -239,6 +242,7 @@ func DoBuildSuggest(
     log.Fatalln(err)
   }
   suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
+  SetVersion(suggestData)
   if err != nil {
     log.Fatalln(err)
   }
@@ -251,4 +255,8 @@ func DoBuildSuggest(
   if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
     log.Fatalln(err)
   }
+}
+
+func SetVersion(suggestData *stpb.SuggestData) {
+  suggestData.Version = uint64(time.Now().Unix())
 }
