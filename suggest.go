@@ -21,6 +21,10 @@ type SuggestAnswerItem struct {
   TextBlocks []*SuggestionTextBlock `json:"text"`
 }
 
+type SuggestResponse struct {
+  Suggestions []*SuggestAnswerItem `json:"suggestions"`
+}
+
 type PaginatedSuggestResponse struct {
   Suggestions     []*SuggestAnswerItem `json:"suggestions"`
   PageNumber      int                  `json:"page_number"`

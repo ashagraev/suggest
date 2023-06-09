@@ -81,14 +81,26 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   excludeClassesMap := PrepareCheckMap(excludeClasses)
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
+
+  var resp interface{}
   if pagingParameters.PaginationOn {
-    network.ReportSuccessData(w, pagingParameters.Apply(suggestions))
+    resp = pagingParameters.Apply(suggestions)
   } else {
     if count, err := strconv.ParseInt(r.URL.Query().Get("count"), 10, 64); err == nil { // no err
       if count != 0 && len(suggestions) > int(count) {
         suggestions = suggestions[:count]
       }
     }
-    network.ReportSuccessData(w, suggestions)
+    resp = suggestions
+  }
+
+  switch response := resp.(type) {
+  case *PaginatedSuggestResponse:
+    network.ReportSuccessData(w, response)
+  case []*SuggestAnswerItem:
+    defaultResp := &SuggestResponse{
+      Suggestions: response,
+    }
+    network.ReportSuccessData(w, defaultResp.Suggestions)
   }
 }
