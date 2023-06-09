@@ -86,12 +86,7 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
   }, nil
 }
 
-func BuildSuggest(
-  items []*Item,
-  maxItemsPerPrefix int,
-  postfixWeightFactor float32,
-  disableNormalizedParts bool,
-) (*stpb.SuggestData, error) {
+func BuildSuggestData(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
@@ -220,4 +215,25 @@ func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
     return nil, err
   }
   return suggestData, nil
+}
+
+func DoBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
+  policy := getPolicy()
+  items, err := LoadItems(inputFilePath, policy)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor))
+  if err != nil {
+    log.Fatalln(err)
+  }
+  log.Printf("marshalling suggest as proto")
+  b, err := proto.Marshal(suggestData)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  log.Printf("writing the resulting proto suggest data to %s", suggestDataPath)
+  if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
+    log.Fatalln(err)
+  }
 }
