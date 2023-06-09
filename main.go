@@ -41,6 +41,8 @@ func main() {
   maxItemsPerPrefix := flag.Int("count", 10, "number of suggestions to return")
   suffixSuggestFactor := flag.Float64("suffix-factor", 1e-5, "a weight multiplier for the suffix suggest")
   equalShapedNormalize := flag.Bool("equal-shaped-normalize", false, "additional normalization for cyrillic symbols")
+  buildWithoutSuffixes := flag.Bool("build-without-suffixes", false, "build suggest without suffixes")
+
   port := flag.String("port", "8080", "daemon port")
   flag.Parse()
 
@@ -48,7 +50,7 @@ func main() {
     log.Fatalln("please specify the suggest data path via the --suggest parameter")
   }
   if *inputFilePath != "" {
-    DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor)
+    DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes)
     return
   }
 
