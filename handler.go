@@ -34,10 +34,6 @@ func NewVersionParameters(query url.Values) *VersionParameters {
   return versionParameters
 }
 
-func (vp *VersionParameters) Apply(version uint64) {
-
-}
-
 type PagingParameters struct {
   Count        int
   Page         int
