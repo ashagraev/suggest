@@ -28,5 +28,4 @@ message SuggestTrie {
 message SuggestData {
   SuggestTrie Trie = 1;
   repeated Item Items = 2;
-  uint64 Version = 3;
 }
