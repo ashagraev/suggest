@@ -86,7 +86,12 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
   }, nil
 }
 
-func BuildSuggestData(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
+func BuildSuggestData(
+  items []*Item,
+  maxItemsPerPrefix int,
+  postfixWeightFactor float32,
+  buildWithoutSuffixes bool,
+) (*stpb.SuggestData, error) {
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
@@ -95,7 +100,7 @@ func BuildSuggestData(items []*Item, maxItemsPerPrefix int, postfixWeightFactor 
       OriginalItem: item,
     })
 
-    if !disableNormalizedParts {
+    if !buildWithoutSuffixes {
       parts := strings.Split(item.NormalizedText, " ")
       for i := 1; i < len(parts); i++ {
         builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
@@ -217,13 +222,19 @@ func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
   return suggestData, nil
 }
 
-func DoBuildSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64) {
+func DoBuildSuggest(
+  inputFilePath string,
+  suggestDataPath string,
+  maxItemsPerPrefix int,
+  suffixFactor float64,
+  buildWithoutSuffixes bool,
+) {
   policy := getPolicy()
   items, err := LoadItems(inputFilePath, policy)
   if err != nil {
     log.Fatalln(err)
   }
-  suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor))
+  suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
   if err != nil {
     log.Fatalln(err)
   }
