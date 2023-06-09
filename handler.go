@@ -20,6 +20,21 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
   network.ReportSuccessMessage(w, "OK")
 }
 
+type VersionParameters struct {
+  VersionOn bool
+  Version   uint64
+}
+
+func NewVersionParameters(query url.Values, version uint64) *VersionParameters {
+  versionParameters := &VersionParameters{Version: version}
+
+  if withVersion, err := strconv.ParseBool(query.Get("with-version")); err == nil { // no err
+    versionParameters.VersionOn = withVersion
+  }
+
+  return versionParameters
+}
+
 type PagingParameters struct {
   Count        int
   Page         int
@@ -63,6 +78,35 @@ func (pp *PagingParameters) Apply(suggestions []*SuggestAnswerItem) *PaginatedSu
   }
 }
 
+func generateResponse(
+  suggestions []*SuggestAnswerItem,
+  pagingParameters *PagingParameters,
+  versionParameters *VersionParameters,
+) interface{} {
+
+  if pagingParameters.PaginationOn {
+    response := pagingParameters.Apply(suggestions)
+    if versionParameters.VersionOn {
+      response.Version = versionParameters.Version
+    }
+    return response
+  }
+
+  count := pagingParameters.Count
+  if count != 0 && len(suggestions) > count {
+    suggestions = suggestions[:count]
+  }
+
+  if versionParameters.VersionOn {
+    return &SuggestResponse{
+      Suggestions: suggestions,
+      Version:     versionParameters.Version,
+    }
+  }
+
+  return suggestions
+}
+
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
@@ -75,39 +119,13 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   } else {
     normalizedPart = NormalizeString(part, h.Policy)
   }
-  withVersion, _ := strconv.ParseBool(r.URL.Query().Get("with-version"))
   classes := r.URL.Query()["class"]
   classesMap := PrepareCheckMap(classes)
   excludeClasses := r.URL.Query()["exclude-class"]
   excludeClassesMap := PrepareCheckMap(excludeClasses)
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
+  versionParameters := NewVersionParameters(r.URL.Query(), h.Suggest.Version)
 
-  var resp interface{}
-  if pagingParameters.PaginationOn {
-    resp = pagingParameters.Apply(suggestions)
-  } else {
-    count := pagingParameters.Count
-    if count != 0 && len(suggestions) > count {
-      suggestions = suggestions[:count]
-    }
-    resp = suggestions
-  }
-
-  if !withVersion {
-    network.ReportSuccessData(w, resp)
-    return
-  }
-
-  switch response := resp.(type) {
-  case *PaginatedSuggestResponse:
-    response.Version = h.Suggest.Version
-    network.ReportSuccessData(w, response)
-  case []*SuggestAnswerItem:
-    defaultResp := &SuggestResponse{
-      Suggestions: response,
-      Version:     h.Suggest.Version,
-    }
-    network.ReportSuccessData(w, defaultResp)
-  }
+  network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters, versionParameters))
 }
