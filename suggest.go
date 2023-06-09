@@ -93,7 +93,12 @@ func Transform(builder *SuggestTrieBuilder) (*stpb.SuggestData, error) {
   }, nil
 }
 
-func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor float32) (*stpb.SuggestData, error) {
+func BuildSuggestData(
+  items []*Item,
+  maxItemsPerPrefix int,
+  postfixWeightFactor float32,
+  buildWithoutSuffixes bool,
+) (*stpb.SuggestData, error) {
   overheadItemsCount := maxItemsPerPrefix * 2
   builder := &SuggestTrieBuilder{}
   for idx, item := range items {
@@ -101,13 +106,17 @@ func BuildSuggest(items []*Item, maxItemsPerPrefix int, postfixWeightFactor floa
       Weight:       item.Weight,
       OriginalItem: item,
     })
-    parts := strings.Split(item.NormalizedText, " ")
-    for i := 1; i < len(parts); i++ {
-      builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
-        Weight:       item.Weight * postfixWeightFactor,
-        OriginalItem: item,
-      })
+
+    if !buildWithoutSuffixes {
+      parts := strings.Split(item.NormalizedText, " ")
+      for i := 1; i < len(parts); i++ {
+        builder.Add(0, strings.Join(parts[i:], " "), overheadItemsCount, &SuggestTrieItem{
+          Weight:       item.Weight * postfixWeightFactor,
+          OriginalItem: item,
+        })
+      }
     }
+
     if (idx+1)%100000 == 0 {
       log.Printf("added %d items of %d to suggest", idx+1, len(items))
     }
@@ -218,6 +227,33 @@ func LoadSuggest(suggestDataPath string) (*stpb.SuggestData, error) {
     return nil, err
   }
   return suggestData, nil
+}
+
+func DoBuildSuggest(
+  inputFilePath string,
+  suggestDataPath string,
+  maxItemsPerPrefix int,
+  suffixFactor float64,
+  buildWithoutSuffixes bool,
+) {
+  policy := getPolicy()
+  items, err := LoadItems(inputFilePath, policy)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  log.Printf("marshalling suggest as proto")
+  b, err := proto.Marshal(suggestData)
+  if err != nil {
+    log.Fatalln(err)
+  }
+  log.Printf("writing the resulting proto suggest data to %s", suggestDataPath)
+  if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
+    log.Fatalln(err)
+  }
 }
 
 func SetVersion(suggestData *stpb.SuggestData) {
