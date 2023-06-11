@@ -240,7 +240,7 @@ func DoBuildSuggest(
     log.Fatalln(err)
   }
   suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
-  SetVersion(suggestData)
+  SetVersion(suggestData, uint64(time.Now().Unix()))
   if err != nil {
     log.Fatalln(err)
   }
@@ -255,6 +255,6 @@ func DoBuildSuggest(
   }
 }
 
-func SetVersion(suggestData *stpb.SuggestData) {
-  suggestData.Version = uint64(time.Now().Unix())
+func SetVersion(suggestData *stpb.SuggestData, version uint64) {
+  suggestData.Version = version
 }
