@@ -1,11 +1,11 @@
-package main
+package tools
 
 import (
   "github.com/microcosm-cc/bluemonday"
   "strings"
 )
 
-func getPolicy() *bluemonday.Policy {
+func GetPolicy() *bluemonday.Policy {
   return bluemonday.StrictPolicy()
 }
 

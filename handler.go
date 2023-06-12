@@ -4,6 +4,7 @@ import (
   "github.com/microcosm-cc/bluemonday"
   "main/network"
   stpb "main/proto/suggest/suggest_trie"
+  "main/tools"
   "math"
   "net/http"
   "net/url"
@@ -85,18 +86,18 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
   if h.EqualShapedNormalize {
-    part = ToEqualShapedLatin(part)
+    part = tools.ToEqualShapedLatin(part)
   }
   normalizedPart := part
   if h.EqualShapedNormalize {
-    normalizedPart = EqualShapedNormalizeString(part, h.Policy)
+    normalizedPart = tools.EqualShapedNormalizeString(part, h.Policy)
   } else {
-    normalizedPart = NormalizeString(part, h.Policy)
+    normalizedPart = tools.NormalizeString(part, h.Policy)
   }
   classes := r.URL.Query()["class"]
-  classesMap := PrepareCheckMap(classes)
+  classesMap := tools.PrepareCheckMap(classes)
   excludeClasses := r.URL.Query()["exclude-class"]
-  excludeClassesMap := PrepareCheckMap(excludeClasses)
+  excludeClassesMap := tools.PrepareCheckMap(excludeClasses)
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
 

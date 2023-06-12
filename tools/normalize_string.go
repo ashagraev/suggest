@@ -1,4 +1,4 @@
-package main
+package tools
 
 import (
   "github.com/microcosm-cc/bluemonday"

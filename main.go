@@ -3,6 +3,7 @@ package main
 import (
   "flag"
   "log"
+  "main/tools"
   "net/http"
   "os"
   "os/signal"
@@ -16,7 +17,7 @@ func RunServingSuggest(suggestDataPath, port string, equalShapedNormalize bool) 
   }
   h := &Handler{
     Suggest:              suggestData,
-    Policy:               getPolicy(),
+    Policy:               tools.GetPolicy(),
     EqualShapedNormalize: equalShapedNormalize,
   }
 

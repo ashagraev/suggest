@@ -6,6 +6,7 @@ import (
   "fmt"
   "github.com/microcosm-cc/bluemonday"
   "log"
+  "main/tools"
   "os"
   "strconv"
   "strings"
@@ -33,7 +34,7 @@ func NewItem(line string, policy *bluemonday.Policy) (*Item, error) {
   }
   return &Item{
     Weight:         float32(weight),
-    NormalizedText: NormalizeString(parts[0], policy),
+    NormalizedText: tools.NormalizeString(parts[0], policy),
     OriginalText:   parts[0],
     Data:           data,
   }, nil

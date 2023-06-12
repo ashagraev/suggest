@@ -5,6 +5,7 @@ import (
   "google.golang.org/protobuf/types/known/structpb"
   "log"
   stpb "main/proto/suggest/suggest_trie"
+  "main/tools"
   "os"
   "sort"
   "strings"
@@ -124,7 +125,7 @@ func BuildSuggestData(
 }
 
 func doHighlight(originalPart string, originalSuggest string) []*SuggestionTextBlock {
-  alphaLoweredPart := strings.ToLower(AlphaNormalizeString(originalPart))
+  alphaLoweredPart := strings.ToLower(tools.AlphaNormalizeString(originalPart))
   loweredSuggest := strings.ToLower(originalSuggest)
 
   partFields := strings.Fields(alphaLoweredPart)
@@ -233,7 +234,7 @@ func DoBuildSuggest(
   suffixFactor float64,
   buildWithoutSuffixes bool,
 ) {
-  policy := getPolicy()
+  policy := tools.GetPolicy()
   items, err := LoadItems(inputFilePath, policy)
   if err != nil {
     log.Fatalln(err)
