@@ -239,11 +239,16 @@ func DoBuildSuggest(
   if err != nil {
     log.Fatalln(err)
   }
+
+  suggestVersion := uint64(time.Now().Unix())
+
   suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
-  SetVersion(suggestData, uint64(time.Now().Unix()))
   if err != nil {
     log.Fatalln(err)
   }
+
+  SetVersion(suggestData, suggestVersion)
+
   log.Printf("marshalling suggest as proto")
   b, err := proto.Marshal(suggestData)
   if err != nil {
