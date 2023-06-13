@@ -82,6 +82,10 @@ func generateResponse(
   return suggestions
 }
 
+func writeVersionHeader(w http.ResponseWriter, version uint64) {
+  w.Header().Add("Suggest-Version", strconv.FormatUint(version, 10))
+}
+
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   network.WriteCORSHeaders(w)
   part := r.URL.Query().Get("part")
@@ -101,5 +105,6 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
 
+  writeVersionHeader(w, h.Suggest.Version)
   network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters))
 }
