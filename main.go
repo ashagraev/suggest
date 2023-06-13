@@ -3,6 +3,7 @@ package main
 import (
   "flag"
   "log"
+  "main/suggest"
   "main/tools"
   "net/http"
   "os"
@@ -11,11 +12,11 @@ import (
 )
 
 func RunServingSuggest(suggestDataPath, port string, equalShapedNormalize bool) {
-  suggestData, err := LoadSuggest(suggestDataPath)
+  suggestData, err := suggest.LoadSuggest(suggestDataPath)
   if err != nil {
     log.Fatalln(err)
   }
-  h := &Handler{
+  h := &suggest.Handler{
     Suggest:              suggestData,
     Policy:               tools.GetPolicy(),
     EqualShapedNormalize: equalShapedNormalize,
@@ -51,7 +52,7 @@ func main() {
     log.Fatalln("please specify the suggest data path via the --suggest parameter")
   }
   if *inputFilePath != "" {
-    DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes)
+    suggest.DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes)
     return
   }
 
