@@ -9,6 +9,7 @@ import (
   "os"
   "sort"
   "strings"
+  "time"
 )
 
 type SuggestionTextBlock struct {
@@ -239,10 +240,16 @@ func DoBuildSuggest(
   if err != nil {
     log.Fatalln(err)
   }
+
+  suggestVersion := uint64(time.Now().Unix())
+
   suggestData, err := BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
   if err != nil {
     log.Fatalln(err)
   }
+
+  SetVersion(suggestData, suggestVersion)
+
   log.Printf("marshalling suggest as proto")
   b, err := proto.Marshal(suggestData)
   if err != nil {
@@ -252,4 +259,8 @@ func DoBuildSuggest(
   if err := os.WriteFile(suggestDataPath, b, 0644); err != nil {
     log.Fatalln(err)
   }
+}
+
+func SetVersion(suggestData *stpb.SuggestData, version uint64) {
+  suggestData.Version = version
 }
