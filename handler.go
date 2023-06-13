@@ -21,6 +21,18 @@ func (h *Handler) HandleHealthRequest(w http.ResponseWriter, _ *http.Request) {
   network.ReportSuccessMessage(w, "OK")
 }
 
+type ApiVersionParameters struct {
+  Version int
+}
+
+func NewApiVersionParameters(query url.Values) *ApiVersionParameters {
+  params := &ApiVersionParameters{Version: 1}
+  if v, err := strconv.ParseInt(query.Get("api-version"), 10, 64); err == nil { // no err
+    params.Version = int(v)
+  }
+  return params
+}
+
 type PagingParameters struct {
   Count        int
   Page         int
@@ -67,6 +79,7 @@ func (pp *PagingParameters) Apply(suggestions []*SuggestAnswerItem) *PaginatedSu
 func generateResponse(
   suggestions []*SuggestAnswerItem,
   pagingParameters *PagingParameters,
+  apiVersionParameters *ApiVersionParameters,
 ) interface{} {
 
   if pagingParameters.PaginationOn {
@@ -79,11 +92,19 @@ func generateResponse(
     suggestions = suggestions[:count]
   }
 
-  return suggestions
+  if apiVersionParameters.Version == 1 {
+    return suggestions
+  }
+
+  return SuggestResponse{Suggestions: suggestions}
 }
 
-func writeVersionHeader(w http.ResponseWriter, version uint64) {
+func writeSuggestVersionHeader(w http.ResponseWriter, version uint64) {
   w.Header().Add("Suggest-Version", strconv.FormatUint(version, 10))
+}
+
+func writeApiVersionHeader(w http.ResponseWriter, version int) {
+  w.Header().Add("Api-Version", strconv.Itoa(version))
 }
 
 func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +125,9 @@ func (h *Handler) HandleSuggestRequest(w http.ResponseWriter, r *http.Request) {
   excludeClassesMap := tools.PrepareCheckMap(excludeClasses)
   suggestions := GetSuggest(h.Suggest, part, normalizedPart, classesMap, excludeClassesMap)
   pagingParameters := NewPagingParameters(r.URL.Query())
+  apiVersionParameters := NewApiVersionParameters(r.URL.Query())
 
-  writeVersionHeader(w, h.Suggest.Version)
-  network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters))
+  writeSuggestVersionHeader(w, h.Suggest.Version)
+  writeApiVersionHeader(w, apiVersionParameters.Version)
+  network.ReportSuccessData(w, generateResponse(suggestions, pagingParameters, apiVersionParameters))
 }
