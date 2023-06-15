@@ -52,19 +52,14 @@ func getSuggestVersion(header http.Header) uint64 {
 }
 
 func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Request) {
-  srcQuery := r.URL.Query()
-  pp := suggest.NewPagingParameters(srcQuery)
-
-  doRequests := func(ctx context.Context, query url.Values, pagingParameters *suggest.PagingParameters) (
+  doRequests := func(ctx context.Context, query url.Values) (
     []*suggest.PaginatedSuggestResponse,
-    [][]*suggest.SuggestAnswerItem,
     []uint64,
     error,
   ) {
     g, ctx := errgroup.WithContext(ctx)
 
-    paginatedResults := make([]*suggest.PaginatedSuggestResponse, len(h.Config.SuggestShardsUrls))
-    suggestionsResults := make([][]*suggest.SuggestAnswerItem, len(h.Config.SuggestShardsUrls))
+    results := make([]*suggest.PaginatedSuggestResponse, len(h.Config.SuggestShardsUrls))
     versions := make([]uint64, len(h.Config.SuggestShardsUrls))
 
     for i, suggestShardUrl := range h.Config.SuggestShardsUrls {
@@ -74,6 +69,8 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
       if err != nil {
         log.Fatal(err)
       }
+
+      query.Add("api-version", "2")
       newSuggestShardUrl.RawQuery = query.Encode()
 
       g.Go(func() error {
@@ -85,58 +82,43 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
 
         versions[i] = getSuggestVersion(header)
 
-        if pagingParameters.PaginationOn {
-          paginatedResponse := &suggest.PaginatedSuggestResponse{}
-          err = json.Unmarshal(result, paginatedResponse)
-          if err != nil {
-            return err
-          }
-          paginatedResults[i] = paginatedResponse
-        } else {
-          suggestions := make([]*suggest.SuggestAnswerItem, 0)
-          err = json.Unmarshal(result, &suggestions)
-          if err != nil {
-            return err
-          }
-          suggestionsResults[i] = suggestions
+        paginatedResponse := &suggest.PaginatedSuggestResponse{}
+        err = json.Unmarshal(result, paginatedResponse)
+        if err != nil {
+          return err
         }
+        results[i] = paginatedResponse
 
         return nil
       })
     }
     if err := g.Wait(); err != nil {
-      return nil, nil, nil, err
+      return nil, nil, err
     }
-    return paginatedResults, suggestionsResults, versions, nil
+    return results, versions, nil
   }
 
-  paginatedResults, suggestionsResults, versions, err := doRequests(context.Background(), srcQuery, pp)
+  srcQuery := r.URL.Query()
+  results, versions, err := doRequests(context.Background(), srcQuery)
   if err != nil {
     log.Println(err)
   }
 
-  var resp interface{}
+  var paginatedResp *suggest.PaginatedSuggestResponse
   var maxVersion uint64
   for i, version := range versions {
     if version > maxVersion {
-      if len(paginatedResults[i].Suggestions) > 0 {
-        resp = paginatedResults[i]
-      } else if len(suggestionsResults[i]) > 0 {
-        resp = suggestionsResults[i]
-      }
+      paginatedResp = results[i]
       maxVersion = version
     }
   }
 
-  if resp == nil {
-    if pp.PaginationOn {
-      resp = &suggest.PaginatedSuggestResponse{}
-    } else {
-      resp = make([]*suggest.SuggestAnswerItem, 0)
-    }
+  pagingParameters := suggest.NewPagingParameters(r.URL.Query())
+  if pagingParameters.PaginationOn {
+    network.ReportSuccessData(w, paginatedResp)
+  } else {
+    network.ReportSuccessData(w, &suggest.SuggestResponse{Suggestions: paginatedResp.Suggestions})
   }
-
-  network.ReportSuccessData(w, resp)
 }
 
 func (h *Handler) HandleMergerHealthRequest(w http.ResponseWriter, _ *http.Request) {
