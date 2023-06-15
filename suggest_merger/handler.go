@@ -113,7 +113,7 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
     }
   }
 
-  pagingParameters := suggest.NewPagingParameters(r.URL.Query())
+  pagingParameters := suggest.NewPagingParameters(srcQuery)
   if pagingParameters.PaginationOn {
     network.ReportSuccessData(w, paginatedResp)
   } else {
