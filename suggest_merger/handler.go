@@ -107,7 +107,7 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
   var paginatedResp *suggest.PaginatedSuggestResponse
   var maxVersion uint64
   for i, version := range versions {
-    if version > maxVersion {
+    if version > maxVersion && len(results[i].Suggestions) > 0 {
       paginatedResp = results[i]
       maxVersion = version
     }
