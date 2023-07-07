@@ -4,6 +4,7 @@ import (
   "context"
   "encoding/json"
   "fmt"
+  "github.com/hashicorp/go-retryablehttp"
   "golang.org/x/sync/errgroup"
   "io/ioutil"
   "log"
@@ -16,29 +17,45 @@ import (
 )
 
 type Handler struct {
-  Config        *Config
-  SuggestClient *SuggestClient
+  Config            *Config
+  SuggestClient     *SuggestClient
+  SuggestShardsUrls []*url.URL
+}
+
+func (h *Handler) InitSuggestShardsUrls() error {
+  for _, suggestShardUrl := range h.Config.SuggestShardsUrls {
+    shardUrl, err := url.Parse(suggestShardUrl)
+    if err != nil {
+      return err
+    }
+    h.SuggestShardsUrls = append(h.SuggestShardsUrls, shardUrl)
+  }
+  return nil
 }
 
 type SuggestClient struct {
-  httpClient *http.Client
+  httpClient *retryablehttp.Client
 }
 
 func NewSuggestClient() *SuggestClient {
   return &SuggestClient{
-    httpClient: &http.Client{
-      Timeout: time.Second * 10,
+    httpClient: &retryablehttp.Client{
+      RetryMax:     10,
+      RetryWaitMin: 10 * time.Millisecond,
+      HTTPClient: &http.Client{
+        Timeout: time.Second * 10,
+      },
     },
   }
 }
 
-func get(requestURL string, headers http.Header, client *http.Client) (int, []byte, http.Header, error) {
-  req, err := http.NewRequest("GET", requestURL, nil)
+func (sc *SuggestClient) Get(requestURL string, headers http.Header) (int, []byte, http.Header, error) {
+  req, err := retryablehttp.NewRequest("GET", requestURL, nil)
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot create request for the url %s: %v", requestURL, err)
   }
   req.Header = headers
-  res, err := client.Do(req)
+  res, err := sc.httpClient.Do(req)
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot execute request for the url %s: %v", requestURL, err)
   }
@@ -60,22 +77,16 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
     g, ctx := errgroup.WithContext(ctx)
 
     results := make([]*suggest.PaginatedSuggestResponse, len(h.Config.SuggestShardsUrls))
-    versions := make([]uint64, len(h.Config.SuggestShardsUrls))
+    versions := make([]uint64, len(h.SuggestShardsUrls))
 
-    for i, suggestShardUrl := range h.Config.SuggestShardsUrls {
+    for i, suggestShardUrl := range h.SuggestShardsUrls {
       i, suggestShardUrl := i, suggestShardUrl // https://golang.org/doc/faq#closures_and_goroutines
 
-      newSuggestShardUrl, err := url.Parse(suggestShardUrl)
-      if err != nil {
-        log.Fatal(err)
-      }
-
-      query.Add("api-version", "2")
-      newSuggestShardUrl.RawQuery = query.Encode()
-
       g.Go(func() error {
-        _, result, header, err := get(newSuggestShardUrl.String(), r.Header, h.SuggestClient.httpClient)
+        query.Add("api-version", "2")
+        suggestShardUrl.RawQuery = query.Encode()
 
+        _, result, header, err := h.SuggestClient.Get(suggestShardUrl.String(), r.Header)
         if err != nil {
           return err
         }
