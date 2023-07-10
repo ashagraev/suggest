@@ -79,19 +79,20 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
     results := make([]*suggest.PaginatedSuggestResponse, len(h.Config.SuggestShardsUrls))
     versions := make([]uint64, len(h.SuggestShardsUrls))
 
+    query.Add("api-version", "2")
+
     for i, suggestShardUrl := range h.SuggestShardsUrls {
       i, suggestShardUrl := i, suggestShardUrl // https://golang.org/doc/faq#closures_and_goroutines
 
       g.Go(func() error {
-        query.Add("api-version", "2")
         suggestShardUrl.RawQuery = query.Encode()
 
-        _, result, header, err := h.SuggestClient.Get(suggestShardUrl.String(), r.Header)
+        _, result, headers, err := h.SuggestClient.Get(suggestShardUrl.String(), r.Header)
         if err != nil {
           return err
         }
 
-        versions[i] = getSuggestVersion(header)
+        versions[i] = getSuggestVersion(headers)
 
         paginatedResponse := &suggest.PaginatedSuggestResponse{}
         err = json.Unmarshal(result, paginatedResponse)
