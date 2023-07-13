@@ -19,16 +19,27 @@ import (
 type Handler struct {
   Config            *Config
   SuggestClient     *SuggestClient
-  SuggestShardsUrls []*url.URL
+  SuggestShardsUrls []url.URL
 }
 
-func (h *Handler) InitSuggestShardsUrls() error {
+func NewHandler(config *Config) (*Handler, error) {
+  h := &Handler{
+    SuggestClient: NewSuggestClient(),
+    Config:        config,
+  }
+  if err := h.initSuggestShardsUrls(); err != nil {
+    return nil, err
+  }
+  return h, nil
+}
+
+func (h *Handler) initSuggestShardsUrls() error {
   for _, suggestShardUrl := range h.Config.SuggestShardsUrls {
     shardUrl, err := url.Parse(suggestShardUrl)
     if err != nil {
       return err
     }
-    h.SuggestShardsUrls = append(h.SuggestShardsUrls, shardUrl)
+    h.SuggestShardsUrls = append(h.SuggestShardsUrls, *shardUrl)
   }
   return nil
 }
@@ -76,7 +87,7 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
   ) {
     g, ctx := errgroup.WithContext(ctx)
 
-    results := make([]*suggest.PaginatedSuggestResponse, len(h.Config.SuggestShardsUrls))
+    results := make([]*suggest.PaginatedSuggestResponse, len(h.SuggestShardsUrls))
     versions := make([]uint64, len(h.SuggestShardsUrls))
 
     query.Add("api-version", "2")

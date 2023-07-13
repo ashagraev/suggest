@@ -19,8 +19,7 @@ func ReadConfig(configPath string) (*Config, error) {
 
   byteValue, _ := ioutil.ReadAll(jsonFile)
   config := &Config{}
-  err = json.Unmarshal(byteValue, config)
-  if err != nil {
+  if err = json.Unmarshal(byteValue, config); err != nil {
     return nil, err
   }
   return config, nil
