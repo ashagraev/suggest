@@ -22,7 +22,7 @@ type characterStat struct {
   EndIndex   int
 }
 
-func DoBuildShardedSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64, disableNormalizedParts bool, countOutputFiles int) {
+func DoBuildShardedSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64, buildWithoutSuffixes bool, countOutputFiles int) {
   if !isFileSorted(inputFilePath) {
     log.Fatalf("file is not sorted, use linux command 'sort', example: sort --parallel 4 -o suggest.data suggest.data")
   }
@@ -50,7 +50,7 @@ func DoBuildShardedSuggest(inputFilePath string, suggestDataPath string, maxItem
       items = append(items, itemsPart...)
     }
 
-    suggestData, err := suggest.BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), disableNormalizedParts)
+    suggestData, err := suggest.BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
     if err != nil {
       log.Fatalln(err)
     }
