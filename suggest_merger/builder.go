@@ -93,7 +93,7 @@ func isFileSorted(inputFilePath string) bool {
   }
 
   return sort.SliceIsSorted(setOfFirstCharacters, func(i, j int) bool {
-    return setOfFirstCharacters[i] <= setOfFirstCharacters[j]
+    return setOfFirstCharacters[i] < setOfFirstCharacters[j]
   })
 }
 
