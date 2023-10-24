@@ -79,7 +79,7 @@ func main() {
   port := flag.String("port", "8080", "daemon port")
   flag.Parse()
 
-  if *suggestDataPath == "" {
+  if *suggestDataPath == "" && !*workAsMerger {
     log.Fatalln("please specify the suggest data path via the --suggest parameter")
   }
   if *inputFilePath != "" {
