@@ -49,14 +49,14 @@ type SuggestClient struct {
 }
 
 func NewSuggestClient() *SuggestClient {
+  retryableClient := retryablehttp.NewClient()
+  retryableClient.RetryMax = 10
+  retryableClient.RetryWaitMin = 10 * time.Millisecond
+  retryableClient.RetryWaitMax = 1 * time.Second
+  retryableClient.HTTPClient.Timeout = 10 * time.Second
+
   return &SuggestClient{
-    httpClient: &retryablehttp.Client{
-      RetryMax:     10,
-      RetryWaitMin: 10 * time.Millisecond,
-      HTTPClient: &http.Client{
-        Timeout: time.Second * 10,
-      },
-    },
+    httpClient: retryableClient,
   }
 }
 
