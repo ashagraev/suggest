@@ -56,6 +56,8 @@ func NewSuggestClient() *SuggestClient {
       HTTPClient: &http.Client{
         Timeout: time.Second * 10,
       },
+      CheckRetry: retryablehttp.DefaultRetryPolicy,
+      Backoff: retryablehttp.DefaultBackoff,
     },
   }
 }
@@ -127,7 +129,10 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
     log.Println(err)
   }
 
-  var paginatedResp *suggest.PaginatedSuggestResponse
+  //var paginatedResp *suggest.PaginatedSuggestResponse
+  paginatedResp := &suggest.PaginatedSuggestResponse{
+    Suggestions: []*suggest.SuggestAnswerItem{},
+  }
   var maxVersion uint64
   for i, version := range versions {
     if version > maxVersion && len(results[i].Suggestions) > 0 {
