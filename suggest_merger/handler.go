@@ -66,7 +66,10 @@ func (sc *SuggestClient) Get(requestURL string, headers http.Header) (int, []byt
     return 0, nil, nil, fmt.Errorf("cannot create request for the url %s: %v", requestURL, err)
   }
   req.Header = headers
+
   res, err := sc.httpClient.Do(req)
+  defer res.Body.Close()
+
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot execute request for the url %s: %v", requestURL, err)
   }
