@@ -53,20 +53,25 @@ func NewSuggestClient() *SuggestClient {
     httpClient: &retryablehttp.Client{
       RetryMax:     10,
       RetryWaitMin: 10 * time.Millisecond,
+      RetryWaitMax: 10 * time.Millisecond,
       HTTPClient: &http.Client{
         Timeout: time.Second * 10,
       },
+      CheckRetry: retryablehttp.ErrorPropagatedRetryPolicy,
     },
   }
 }
 
-func (sc *SuggestClient) Get(requestURL string, headers http.Header) (int, []byte, http.Header, error) {
-  req, err := retryablehttp.NewRequest("GET", requestURL, nil)
+func (sc *SuggestClient) Get(ctx context.Context, requestURL string, headers http.Header) (int, []byte, http.Header, error) {
+  req, err := retryablehttp.NewRequestWithContext(ctx, "GET", requestURL, nil)
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot create request for the url %s: %v", requestURL, err)
   }
   req.Header = headers
+
   res, err := sc.httpClient.Do(req)
+  defer res.Body.Close()
+
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot execute request for the url %s: %v", requestURL, err)
   }
@@ -98,7 +103,7 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
       g.Go(func() error {
         suggestShardUrl.RawQuery = query.Encode()
 
-        _, result, headers, err := h.SuggestClient.Get(suggestShardUrl.String(), r.Header)
+        _, result, headers, err := h.SuggestClient.Get(ctx, suggestShardUrl.String(), r.Header)
         if err != nil {
           return err
         }
@@ -127,7 +132,9 @@ func (h *Handler) HandleMergerSuggestRequest(w http.ResponseWriter, r *http.Requ
     log.Println(err)
   }
 
-  var paginatedResp *suggest.PaginatedSuggestResponse
+  paginatedResp := &suggest.PaginatedSuggestResponse{
+    Suggestions: []*suggest.SuggestAnswerItem{},
+  }
   var maxVersion uint64
   for i, version := range versions {
     if version > maxVersion && len(results[i].Suggestions) > 0 {
