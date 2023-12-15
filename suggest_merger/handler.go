@@ -68,11 +68,11 @@ func (sc *SuggestClient) Get(requestURL string, headers http.Header) (int, []byt
   req.Header = headers
 
   res, err := sc.httpClient.Do(req)
-  defer res.Body.Close()
-
   if err != nil {
     return 0, nil, nil, fmt.Errorf("cannot execute request for the url %s: %v", requestURL, err)
   }
+  defer res.Body.Close()
+
   content, err := ioutil.ReadAll(res.Body)
   return res.StatusCode, content, res.Header, err
 }
