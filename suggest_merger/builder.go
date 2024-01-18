@@ -22,7 +22,15 @@ type characterStat struct {
   EndIndex   int
 }
 
-func DoBuildShardedSuggest(inputFilePath string, suggestDataPath string, maxItemsPerPrefix int, suffixFactor float64, buildWithoutSuffixes bool, countOutputFiles int) {
+func DoBuildShardedSuggest(
+  inputFilePath string,
+  suggestDataPath string,
+  maxItemsPerPrefix int,
+  suffixFactor float64,
+  buildWithoutSuffixes bool,
+  countOutputFiles int,
+  countWorkers int,
+) {
   if !isFileSorted(inputFilePath) {
     log.Fatalf("file is not sorted, use linux command 'sort', example: sort --parallel 4 -o suggest.data suggest.data")
   }
@@ -39,37 +47,95 @@ func DoBuildShardedSuggest(inputFilePath string, suggestDataPath string, maxItem
 
   policy := tools.GetPolicy()
   suggestVersion := uint64(time.Now().Unix())
+
+  // start workers
+  jobs := make(chan makeSuggestInput, countOutputFiles)
+  errs := make(chan error, countOutputFiles)
+  for i := 0; i < countWorkers; i++ {
+    go makeSuggest(i+1,
+      charactersStat,
+      policy,
+      suggestVersion,
+      suggestDataPath,
+      suffixFactor,
+      maxItemsPerPrefix,
+      buildWithoutSuffixes,
+      inputFilePath,
+      jobs, errs)
+  }
+
   for shardNumber, characters := range parts {
+    jobs <- makeSuggestInput{
+      characters:  characters,
+      shardNumber: shardNumber,
+    }
+  }
+  close(jobs)
+
+  for i := 0; i < len(parts); i++ {
+    err := <-errs
+    if err != nil {
+      log.Fatalln(err)
+    }
+  }
+
+  return
+}
+
+type makeSuggestInput struct {
+  characters  []string
+  shardNumber int
+}
+
+func makeSuggest(
+  workerNumber int,
+  charactersStat map[string]*characterStat,
+  policy *bluemonday.Policy,
+  suggestVersion uint64,
+  suggestDataPath string,
+  suffixFactor float64,
+  maxItemsPerPrefix int,
+  buildWithoutSuffixes bool,
+  inputFilePath string,
+  jobs <-chan makeSuggestInput,
+  errs chan<- error,
+) {
+  for input := range jobs {
+    characters := input.characters
+    shardNumber := input.shardNumber
+
     var items []*suggest.Item
 
     for _, c := range characters {
-      itemsPart, err := loadItemsByPart(inputFilePath, charactersStat[c].StartIndex, charactersStat[c].EndIndex, policy)
+      itemsPart, err := loadItemsByPart(workerNumber, inputFilePath, charactersStat[c].StartIndex, charactersStat[c].EndIndex, policy)
       if err != nil {
-        log.Fatalln(err)
+        errs <- err
       }
       items = append(items, itemsPart...)
     }
 
+    log.Printf("worker #%d starts building suggest", workerNumber)
     suggestData, err := suggest.BuildSuggestData(items, maxItemsPerPrefix, float32(suffixFactor), buildWithoutSuffixes)
     if err != nil {
-      log.Fatalln(err)
+      errs <- err
     }
     suggest.SetVersion(suggestData, suggestVersion)
 
-    log.Printf("marshalling suggest as proto")
+    log.Printf("worker #%d serializes suggest as proto", workerNumber)
     b, err := proto.Marshal(suggestData)
     if err != nil {
-      log.Fatalln(err)
+      errs <- err
     }
 
     suggestDataPathPart := strings.ReplaceAll(suggestDataPath, ".", fmt.Sprintf("_%d.", shardNumber))
 
-    log.Printf("writing the resulting proto suggest data to %s with prefixes %v, items count %d, version %d", suggestDataPathPart, characters, len(items), suggestData.Version)
+    log.Printf("worker #%d writes the resulting proto suggest data to %s with prefixes %v, items count %d, version %d", workerNumber, suggestDataPathPart, characters, len(items), suggestData.Version)
     if err := ioutil.WriteFile(suggestDataPathPart, b, 0644); err != nil {
-      log.Fatalln(err)
+      errs <- err
     }
+
+    errs <- nil
   }
-  return
 }
 
 func isFileSorted(inputFilePath string) bool {
@@ -217,7 +283,13 @@ func getDistributionByParts(charactersStat map[string]*characterStat, countParts
   return parts, nil
 }
 
-func loadItemsByPart(inputFilePath string, startIndex int, endIndex int, policy *bluemonday.Policy) ([]*suggest.Item, error) {
+func loadItemsByPart(
+  workerNumber int,
+  inputFilePath string,
+  startIndex int,
+  endIndex int,
+  policy *bluemonday.Policy,
+) ([]*suggest.Item, error) {
   file, err := os.Open(inputFilePath)
   if err != nil {
     return nil, err
@@ -243,7 +315,7 @@ func loadItemsByPart(inputFilePath string, startIndex int, endIndex int, policy 
     items = append(items, item)
     lineNumber++
     if lineNumber%100000 == 0 {
-      log.Printf("read %d lines", lineNumber)
+      log.Printf("worker #%d reads %d lines", workerNumber, lineNumber)
     }
 
     currentLen += len(line) + 1
