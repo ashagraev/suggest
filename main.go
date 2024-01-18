@@ -69,6 +69,7 @@ func main() {
   inputFilePath := flag.String("input", "", "input data file path")
   suggestDataPath := flag.String("suggest", "", "suggest data file path")
   maxItemsPerPrefix := flag.Int("count", 10, "number of suggestions to return")
+  countWorkers := flag.Int("parallel", 5, "number of parallel workers")
   suffixSuggestFactor := flag.Float64("suffix-factor", 1e-5, "a weight multiplier for the suffix suggest")
   equalShapedNormalize := flag.Bool("equal-shaped-normalize", false, "additional normalization for cyrillic symbols")
   buildWithoutSuffixes := flag.Bool("build-without-suffixes", false, "build suggest without suffixes")
@@ -86,7 +87,7 @@ func main() {
     if *countOutputFiles == 0 {
       suggest.DoBuildSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes)
     } else {
-      suggest_merger.DoBuildShardedSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes, *countOutputFiles)
+      suggest_merger.DoBuildShardedSuggest(*inputFilePath, *suggestDataPath, *maxItemsPerPrefix, *suffixSuggestFactor, *buildWithoutSuffixes, *countOutputFiles, *countWorkers)
     }
     return
   }
